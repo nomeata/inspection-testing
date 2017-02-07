@@ -222,6 +222,20 @@ Here are some aspects that likely need to be improved:
 
  * Come up with a better story about recursive functions.
 
+How else can I prove things about Haskell?
+------------------------------------------
+
+ * Wait for full dependent types in Haskell and express your equivalences as
+   types.
+ * Manually or mechanically (e.g. using [Haskabelle](https://isabelle.in.tum.de/haskabelle.html)) rewrite your code in a
+   theorem prover such as [Isabelle](http://isabelle.in.tum.de/),
+   [Agda](http://wiki.portal.chalmers.se/agda/pmwiki.php) or
+   [Coq](https://coq.inria.fr/), and prove stuff there.
+ * Write your code in these theorem provers in the first place and export them
+   to Haskell.
+ * You might be able to prove a few things using
+   [Liquid Haskell](https://ucsd-progsys.github.io/liquidhaskell-blog/).
+
 
 Can I comment or help?
 ----------------------
