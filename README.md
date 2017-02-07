@@ -234,7 +234,8 @@ How else can I prove things about Haskell?
  * Write your code in these theorem provers in the first place and export them
    to Haskell.
  * You might be able to prove a few things using
-   [Liquid Haskell](https://ucsd-progsys.github.io/liquidhaskell-blog/).
+   [Liquid Haskell](https://ucsd-progsys.github.io/liquidhaskell-blog/) or,
+   actually quite similar to this, [HERMIT](http://ku-fpg.github.io/software/hermit/).
 
 
 Can I comment or help?
