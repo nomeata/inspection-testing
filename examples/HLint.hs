@@ -74,7 +74,7 @@ proof12 = hIsEOF stdin === isEOF
 -- -- EXIT
 
 -- warn = exitWith ExitSuccess ==> exitSuccess
-proof13 = exitWith ExitSuccess =/= exitSuccess
+proof13 = exitWith ExitSuccess === exitSuccess
 
 -- -- ORD
 
@@ -144,7 +144,7 @@ proof23 :: forall f. (Functor f, Foldable f) => ()
 proof23 = (\ f x -> concat (fmap f x)) =/= (\ f (x:: f a) -> concatMap f x)
 
 -- hint = concat [a, b] ==> a ++ b
-proof24 a b = concat [a, b] =/= (a ++ b)
+proof24 a b = concat [a, b] === (a ++ b)
 
 -- hint "Use map once" = map f (map g x) ==> map (f . g) x
 proof25 f g x = map f (map g x) === map (f . g) x
@@ -180,10 +180,10 @@ proof31 x = cycle [x] =/= repeat x
 -- warn = isPrefixOf (reverse x) (reverse y) ==> isSuffixOf x y
 
 -- warn = foldr (++) [] ==> concat
-proof32 x = foldr (++) [] x =/= concat x
+proof32 x = foldr (++) [] x === concat x
 
 -- warn = foldr (++) "" ==> concat
-proof33 x = foldr (++) "" x =/= concat x
+proof33 x = foldr (++) "" x === concat x
 
 -- warn = foldl (++) [] ==> concat where note = IncreasesLaziness
 -- warn = foldl (++) "" ==> concat where note = IncreasesLaziness

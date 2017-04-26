@@ -70,8 +70,8 @@ proveTask guts (name, really, bndrs, e1, e2) = do
       then putMsg (text "GHC.Proof: Proving" <+> name <+> text "…")
       else putMsg (text "GHC.Proof: Not proving" <+> name <+> text "…")
 
-    se1 <- simplify guts e1
-    se2 <- simplify guts e2
+    se1 <- simplify guts bndrs e1
+    se2 <- simplify guts bndrs e2
     let differences = diffExpr False (mkRnEnv2 emptyInScopeSet) se1 se2
 
     if really
@@ -97,8 +97,8 @@ proveTask guts (name, really, bndrs, e1, e2) = do
 itemize :: [SDoc] -> SDoc
 itemize = vcat . map (char '•' <+>)
 
-simplify :: ModGuts -> CoreExpr -> CoreM CoreExpr
-simplify guts expr = do
+simplify :: ModGuts -> [Var] -> CoreExpr -> CoreM CoreExpr
+simplify guts more_in_scope expr = do
     dflags <- getDynFlags
 
 #if  __GLASGOW_HASKELL__ >= 801
@@ -109,37 +109,43 @@ simplify guts expr = do
     us <- liftIO $ mkSplitUniqSupply 's'
     let sz = exprSize expr
 
-    rule_base <- getRuleBase
+    hpt_rule_base <- getRuleBase
+    hsc_env <- getHscEnv
+    eps <- liftIO $ hscEPS hsc_env
+    let rule_base1 = unionRuleBase hpt_rule_base (eps_rule_base eps)
+        rule_base2 = extendRuleBaseList rule_base1 (mg_rules guts)
     vis_orphs <- getVisibleOrphanMods
-    let rule_base2 = extendRuleBaseList rule_base (mg_rules guts)
     let rule_env = RuleEnv rule_base2 vis_orphs
-    -- pprTrace "rb" (ppr rule_base2) (return ())
+    let in_scope = bindersOfBinds (mg_binds guts) ++ more_in_scope
 
     (expr', _) <- liftIO $ initSmpl dflags' rule_env emptyFamInstEnvs us sz $ do
-            return expr >>= simplExpr (simplEnv 4) . occurAnalyseExpr
-                        >>= simplExpr (simplEnv 4) . occurAnalyseExpr
-                        >>= simplExpr (simplEnv 3) . occurAnalyseExpr
-                        >>= simplExpr (simplEnv 3) . occurAnalyseExpr
-                        >>= simplExpr (simplEnv 2) . occurAnalyseExpr
-                        >>= simplExpr (simplEnv 2) . occurAnalyseExpr
-                        >>= simplExpr (simplEnv 2) . occurAnalyseExpr
-                        >>= simplExpr (simplEnv 1) . occurAnalyseExpr
-#if  __GLASGOW_HASKELL__ >= 801
-                                                                      . cseOneExpr
-#endif
-                        >>= simplExpr (simplEnv 1) . occurAnalyseExpr
-#if  __GLASGOW_HASKELL__ >= 801
-                                                                      . cseOneExpr
-#endif
+            return expr >>= simplExpr (simplEnv in_scope 4) . occurAnalyseExpr
+                        >>= simplExpr (simplEnv in_scope 4) . occurAnalyseExpr
+                        >>= simplExpr (simplEnv in_scope 3) . occurAnalyseExpr
+                        >>= simplExpr (simplEnv in_scope 3) . occurAnalyseExpr
+                        >>= simplExpr (simplEnv in_scope 2) . occurAnalyseExpr
+                        >>= simplExpr (simplEnv in_scope 2) . occurAnalyseExpr
+                        >>= simplExpr (simplEnv in_scope 2) . occurAnalyseExpr
+                        >>= simplExpr (simplEnv in_scope 1) . occurAnalyseExpr . cseOneExpr'
+                        >>= simplExpr (simplEnv in_scope 1) . occurAnalyseExpr . cseOneExpr'
     return expr'
 
-simplEnv :: Int -> SimplEnv
-simplEnv p = mkSimplEnv $ SimplMode { sm_names = ["GHC.Proof"]
-                                    , sm_phase = Phase p
-                                    , sm_rules = True
-                                    , sm_inline = True
-                                    , sm_eta_expand = True
-                                    , sm_case_case = True }
+#if  __GLASGOW_HASKELL__ >= 801
+cseOneExpr' = cseOneExpr
+#else
+cseOneExpr' = id
+#endif
+
+simplEnv :: [Var] -> Int -> SimplEnv
+simplEnv vars p = env1
+  where
+    env1 = addNewInScopeIds env0 vars
+    env0 =  mkSimplEnv $ SimplMode { sm_names = ["GHC.Proof"]
+                                   , sm_phase = Phase p
+                                   , sm_rules = True
+                                   , sm_inline = True
+                                   , sm_eta_expand = True
+                                   , sm_case_case = True }
 
 proofPass :: ModGuts -> CoreM ModGuts
 proofPass guts = do

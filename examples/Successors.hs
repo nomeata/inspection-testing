@@ -62,23 +62,8 @@ getSuccs_proof3 = (\ x k -> getSuccs (x >>= k))
 
 -- And now to the actual laws
 
--- Here we need to help out a bit and tell it a few simple things about foldr
--- and mapFB. Luckily, we can easily do so using rewrite rules.
-
-{-# RULES "mapFB/id" forall c . mapFB c (\x -> x) = c #-}
-{-# RULES "foldr/nil" forall k n . GHC.Base.foldr k n [] = n #-}
-{-# RULES "foldr/undo" forall xs. GHC.Base.foldr (:) [] xs = xs #-}
-
 app_law_1 = (\ x -> pure id <*> x)
         === ((\ x -> x) :: Succs a -> Succs a)
-
--- This is a bit more intricate. But essentially, this is saying that
--- map commutes with append, but in terms of the list fusion combinators.
-
-{-# RULES "foldr/mapFB" forall c f g n1 n2 xs.
-    GHC.Base.foldr (mapFB c f) n1 (GHC.Base.foldr (mapFB (:) g) n2 xs)
-    = GHC.Base.foldr (mapFB c (f.g)) (GHC.Base.foldr (mapFB c f) n1 n2) xs
-    #-}
 
 app_law_2 = (\ a b (c::Succs a) -> pure (.) <*> a <*> b <*> c)
         === (\ a b c -> a <*> (b <*> c))
