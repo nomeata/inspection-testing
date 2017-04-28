@@ -2,7 +2,7 @@
 This example is based on Control.Applicative.Successors, and shows how some
 algebraic laws of a simple data structure can be proven by GHC.
 -}
-{-# LANGUAGE BangPatterns, ScopedTypeVariables #-}
+{-# LANGUAGE BangPatterns, ScopedTypeVariables, TypeApplications#-}
 {-# OPTIONS_GHC -O -fplugin GHC.Proof.Plugin #-}
 module Successors where
 
@@ -43,54 +43,58 @@ getSuccs (Succs _ xs) = xs
 -- These identities are easily proven by GHC,
 -- at least if one helps by making some of the arguments as strict.
 
-getCurrent_proof1 = (\x -> getCurrent (pure x))
-                === (\x -> x)
+getCurrent_prop1 x = getCurrent (pure x)
+                 === x
+getCurrent_prop2 f x = (x `seq` getCurrent (f <*> x))
+                   === (x `seq` getCurrent f (getCurrent x))
+getCurrent_prop3 x k = getCurrent (x >>= k)
+                   === (x `seq` getCurrent (k (getCurrent x)))
 
-getCurrent_proof2 = (\ f !x -> getCurrent (f <*> x))
-                === (\ f !x -> (getCurrent f) (getCurrent x))
-
-getCurrent_proof3 = (\ !x k -> getCurrent (x >>= k))
-                === (\ !x k -> getCurrent (k (getCurrent x)))
-
-getSuccs_proof1 = (\x -> getSuccs (pure x))
-              === (\x -> [])
-
-getSuccs_proof2 = (\ f !x -> getSuccs (f <*> x))
-              === (\ f !x -> map ($ getCurrent x) (getSuccs f) ++ map (getCurrent f) (getSuccs x))
-getSuccs_proof3 = (\ x k -> getSuccs (x >>= k))
-              === (\ x k -> map (getCurrent . k) (getSuccs x) ++ getSuccs (k (getCurrent x)))
+getSuccs_prop1 x = getSuccs (pure x)
+               === []
+getSuccs_prop2 f x = (x `seq` getSuccs (f <*> x))
+                 === (x `seq` map ($ getCurrent x) (getSuccs f) ++ map (getCurrent f) (getSuccs x))
+getSuccs_prop3 x k = getSuccs (x >>= k)
+                 === map (getCurrent . k) (getSuccs x) ++ getSuccs (k (getCurrent x))
 
 -- And now to the actual laws
 
-app_law_1 = (\ x -> pure id <*> x)
-        === ((\ x -> x) :: Succs a -> Succs a)
+applicative_law1 :: Succs a -> Proof
+applicative_law1 v = pure id <*> v
+                 === v
 
-app_law_2 = (\ a b (c::Succs a) -> pure (.) <*> a <*> b <*> c)
-        === (\ a b c -> a <*> (b <*> c))
+applicative_law2 :: Succs (b -> c) -> Succs (a -> b) -> Succs a -> Proof
+applicative_law2 u v w = pure (.) <*> u <*> v <*> w
+                     === u <*> (v <*> w)
 
-app_law_3 = (\ f (x::a) -> pure f <*> (pure x :: Succs a))
-        === (\ f (x::a) -> pure (f x))
+applicative_law3 :: forall a b. (a -> b) -> a -> Proof
+applicative_law3 f x = pure f <*> (pure x :: Succs a)
+                   === pure (f x)
 
-app_law_4 = (\ f (x::a) -> f <*> (pure x :: Succs a))
-        === (\ f (x::a) -> pure ($x) <*> f)
+applicative_law4 :: Succs (a -> b) -> a -> Proof
+applicative_law4 u y = u <*> pure y
+                   === pure ($ y) <*> u
 
-monad_law_1 = (\ (x::a) k -> k x `seq` (return x :: Succs a) >>= k)
-          === (\ (x::a) k -> k x)
+monad_law1 :: a -> (a -> Succs b) -> Proof
+monad_law1 a k = (k a `seq` return a >>= k)
+             === k a
 
-monad_law_2 = (\ (x::Succs a) -> x >>= return)
-          === (\ x -> x)
+monad_law2 :: Succs a -> Proof
+monad_law2 m = m >>= return
+           === m
 
 -- A little trick to say: Prove this only for strict f
 str :: (a -> b) -> (a -> b)
 str f x = x `seq` f x
 
-monad_law_3 = (\ (x::Succs a) k h -> x >>= (\x -> k x >>= str h))
-          === (\ (x::Succs a) k h -> (x >>= k) >>= str h)
+monad_law3 :: Succs a -> (a -> Succs b) -> (b -> Succs c) -> Proof
+monad_law3 m k h = m >>= (\x -> k x >>= str h)
+               === (m >>= k) >>= str h
 
 -- The law relating the monad and applicative instances
 
-return_pure = (\ (x::a) -> return x :: Succs a)
-          === (\ (x::a) -> pure x :: Succs a)
+return_pure x = return @Succs x
+            === pure @Succs x
 
-ap_star = (\ f !(x::Succs a) -> getCurrent f `seq` f <*> x)
-      === (\ f !(x::Succs a) -> getCurrent f `seq` f `ap` x)
+ap_star f x = (x `seq` getCurrent f `seq` f <*> x)
+          === (x `seq` getCurrent f `seq` f `ap` x)
