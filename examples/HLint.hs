@@ -59,7 +59,7 @@ proof7 = hPutStr stdout =/= putStr
 proof8 = hPutStrLn stdout =/= putStrLn
 
 -- warn = hPrint stdout ==> print
-proof9 :: forall x. Show x => ()
+proof9 :: forall x. Show x => Proof
 proof9 = (hPrint stdout :: x -> IO ()) === print
 
 -- warn = hWaitForInput a 0 ==> hReady a
@@ -140,7 +140,7 @@ proof21 f g h = ((f `on` g) `on` h) === (f `on` (g.h))
 proof22 f x = concat (map f x) =/= concatMap f x
 
 -- warn = concat (fmap f x) ==> concatMap f x
-proof23 :: forall f. (Functor f, Foldable f) => ()
+proof23 :: forall f. (Functor f, Foldable f) => Proof
 proof23 = (\ f x -> concat (fmap f x)) =/= (\ f (x:: f a) -> concatMap f x)
 
 -- hint = concat [a, b] ==> a ++ b
