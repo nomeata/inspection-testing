@@ -59,6 +59,14 @@ getSuccs_prop3 x k = getSuccs (x >>= k)
 
 -- And now to the actual laws
 
+functor_law1 :: Succs a -> Proof
+functor_law1 v = fmap id v
+                 === v
+
+functor_law2 :: (a -> b) -> (b -> c) -> Succs a -> Proof
+functor_law2 f g v = fmap g (fmap f v)
+                 === fmap (g . f) v
+
 applicative_law1 :: Succs a -> Proof
 applicative_law1 v = pure id <*> v
                  === v
