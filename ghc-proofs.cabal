@@ -32,6 +32,25 @@ cabal-version:       >=1.10
 library
   exposed-modules:     GHC.Proof
                        GHC.Proof.Plugin
-  build-depends:       base >=4.9 && <4.11,
-                       ghc == 8.0.* || == 8.1.* || == 8.3.*
+  build-depends:       base >=4.9 && <4.11
+  build-depends:       ghc >= 8.2 && <8.4
   default-language:    Haskell2010
+
+test-suite successors
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      examples
+  main-is:             Successors.hs
+  build-depends:       ghc-proofs
+  build-depends:       base >=4.9 && <4.11
+  default-language:    Haskell2010
+  ghc-options:         -main-is Successors
+
+test-suite hlint
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      examples
+  main-is:             HLint.hs
+  build-depends:       ghc-proofs
+  build-depends:       base >=4.9 && <4.11
+  build-depends:       transformers
+  default-language:    Haskell2010
+  ghc-options:         -main-is HLint

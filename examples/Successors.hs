@@ -106,3 +106,5 @@ return_pure x = return @Succs x
 
 ap_star f x = (x `seq` getCurrent f `seq` f <*> x)
           === (x `seq` getCurrent f `seq` f `ap` x)
+
+main = putStrLn "I ran, ergo I compiled."

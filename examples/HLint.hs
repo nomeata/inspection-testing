@@ -35,7 +35,7 @@ import Numeric
 -- I/O
 
 -- warn = putStrLn (show x) ==> print x
-proof1 (x::Int) = putStrLn (show x) === print x
+proof1 x = putStrLn (show x) === print x
 
 -- warn = mapM_ putChar ==> putStr
 proof2 = mapM_ putChar =/= putStr
@@ -753,3 +753,6 @@ proof81 xs = unionBy (==) xs === union xs
 
 -- warn "Using null on tuple"   = null x   ==> False where _ = isTuple x
 -- warn "Using length on tuple" = length x ==> 1     where _ = isTuple x
+
+-- To be able to use this as a test suite
+main = putStrLn "I ran, ergo I compiled."
