@@ -23,7 +23,7 @@ author:              Joachim Breitner
 maintainer:          mail@joachim-breitner.de
 copyright:           2017 Joachim Breitner
 build-type:          Simple
-extra-source-files:  ChangeLog.md
+extra-source-files:  ChangeLog.md, README.md
 cabal-version:       >=1.10
 Tested-With:         GHC == 8.2.1, GHC == 8.3
 
