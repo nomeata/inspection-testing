@@ -1,6 +1,6 @@
+-- | See "GHC.Proof".
 {-# LANGUAGE CPP #-}
-module GHC.Proof.Plugin where
-
+module GHC.Proof.Plugin (plugin) where
 
 import Data.Maybe
 import Control.Monad

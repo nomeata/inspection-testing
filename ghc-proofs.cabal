@@ -9,12 +9,8 @@ description:         Often when writing Haskel code, one would like to prove thi
 
                      Wouldn’t it be nice if the compiler could check them for
                      us? With this plugin, he can! (At least in certain simple
-                     cases, for everything else, you have to use a more
+                     cases – for everything else, you have to use a more
                      dedicated solution.)
-
-                     Currently, the plugin works best with GHC HEAD, which has
-                     some additional API hooks. But you can play around with
-                     the released version of GHC as well!
 
                      See the documentation in "GHC.Proof" or the project
                      webpage for more examples and more information.
