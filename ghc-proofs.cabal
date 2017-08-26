@@ -2,16 +2,16 @@ name:                ghc-proofs
 version:             0.1
 synopsis:            GHC plugin to prove program equations by simplification
 description:         Often when writing Haskel code, one would like to prove things about the code.
-
+                     .
                      A good example is writing an 'Applicative' or 'Monad'
                      instance: there are equation that should hold, and
                      checking them manually is tedious.
-
+                     .
                      Wouldn’t it be nice if the compiler could check them for
                      us? With this plugin, he can! (At least in certain simple
                      cases – for everything else, you have to use a more
                      dedicated solution.)
-
+                     .
                      See the documentation in "GHC.Proof" or the project
                      webpage for more examples and more information.
 
