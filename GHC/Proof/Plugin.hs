@@ -128,6 +128,8 @@ simplify guts more_in_scope expr = do
                         >>= simplExpr (simplEnv in_scope 2) . occurAnalyseExpr
                         >>= simplExpr (simplEnv in_scope 1) . occurAnalyseExpr . cseOneExpr'
                         >>= simplExpr (simplEnv in_scope 1) . occurAnalyseExpr . cseOneExpr'
+                        >>= simplExpr (simplEnv in_scope 0) . occurAnalyseExpr . cseOneExpr'
+                        >>= simplExpr (simplEnv in_scope 0) . occurAnalyseExpr . cseOneExpr'
     return expr'
 
 #if  __GLASGOW_HASKELL__ >= 801

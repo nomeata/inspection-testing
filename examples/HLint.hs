@@ -137,7 +137,7 @@ proof21 f g h = ((f `on` g) `on` h) === (f `on` (g.h))
 -- -- LIST
 
 -- warn = concat (map f x) ==> concatMap f x
-proof22 f x = concat (map f x) =/= concatMap f x
+proof22 f x = concat (map f x) === concatMap f x
 
 -- warn = concat (fmap f x) ==> concatMap f x
 proof23 :: forall f. (Functor f, Foldable f) => Proof
@@ -150,7 +150,7 @@ proof24 a b = concat [a, b] === (a ++ b)
 proof25 f g x = map f (map g x) === map (f . g) x
 
 -- hint "Fuse concatMap/map" = concatMap f (map g x) ==> concatMap (f . g) x
-proof26 f g x = concatMap f (map g x) =/= concatMap (f . g) x
+proof26 f g x = concatMap f (map g x) === concatMap (f . g) x
 
 -- hint = x !! 0 ==> head x
 proof27 x = x !! 0 =/= head x
@@ -165,8 +165,7 @@ proof29 f n x = map f (replicate n x) =/= replicate n (f x)
 
 -- warn = map f (repeat x) ==> repeat (f x)
 --     where _ = noQuickCheck -- takes forever
-proof30 f x = map f (repeat x) =/= repeat (f x)
-  -- ^ works if we simplify all the way to phase 0!
+proof30 f x = map f (repeat x) === repeat (f x)
 
 -- warn = cycle [x] ==> repeat x
 --     where _ = noQuickCheck -- takes forever
@@ -220,10 +219,10 @@ proof42 = map id =/= id
 proof43 x = concatMap id x === concat x
 
 -- warn = or (map p x) ==> any p x
-proof44 p x = or (map p x) =/= any p x
+proof44 p x = or (map p x) === any p x
 
 -- warn = and (map p x) ==> all p x
-proof45 p x = and (map p x) =/= all p x
+proof45 p x = and (map p x) === all p x
 
 -- warn = zipWith (,) ==> zip
 proof46 = zipWith (,) =/= zip
@@ -249,7 +248,7 @@ proof51 f x y = map f (zip x y) =/= zipWith (curry f) x y
 proof52 x y = not (elem x y) === notElem x y
 
 -- hint = foldr f z (map g x) ==> foldr (f . g) z x
-proof53 f z g x = foldr f z (map g x) =/= foldr (f . g) z x
+proof53 f z g x = foldr f z (map g x) === foldr (f . g) z x
 
 -- warn = x ++ concatMap (' ':) y ==> unwords (x:y)
 proof54 x y = x ++ concatMap (' ':) y =/= unwords (x:y)

@@ -1,5 +1,5 @@
 name:                ghc-proofs
-version:             0.1
+version:             0.1.1
 synopsis:            GHC plugin to prove program equations by simplification
 description:         Often when writing Haskel code, one would like to prove things about the code.
                      .
