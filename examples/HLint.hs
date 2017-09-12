@@ -1,4 +1,4 @@
-{-# LANGUAGE BangPatterns, ScopedTypeVariables, AllowAmbiguousTypes #-}
+{-# LANGUAGE BangPatterns, ScopedTypeVariables, AllowAmbiguousTypes, TypeApplications #-}
 {-# OPTIONS_GHC -O -fplugin GHC.Proof.Plugin #-}
 
 -- This modules explores which rules from hlint-1.9.41 we can prove with
@@ -365,12 +365,32 @@ proof81 xs = unionBy (==) xs === union xs
 
 -- warn = foldr  (>>) (return ()) ==> sequence_
 --     where _ = noQuickCheck
+proof82 :: forall m f. (Foldable f, Monad m) => Proof
+proof82 = foldr @f (>>) (return @m ()) === sequence_
+
 -- warn = foldr  (&&) True ==> and
+proof83 :: forall f. Foldable f => Proof
+proof83 = foldr @f (&&) True =/= and
+
+proof83list :: [Bool] -> Proof
+proof83list xs = foldr @[] (&&) True xs =/= and xs
+  -- Fun fact: This one holds up to coercions! #14223
+
 -- warn = foldl  (&&) True ==> and where note = IncreasesLaziness
+proof84 :: forall f. Foldable f => Proof
+proof84 = foldl @f (&&) True =/= and
+
 -- warn = foldr1 (&&)  ==> and where note = RemovesError "on []"; _ = noQuickCheck
 -- warn = foldl1 (&&)  ==> and where note = RemovesError "on []"
 -- warn = foldr  (||) False ==> or
+proof85 :: forall f. Foldable f => Proof
+proof85 = foldr @f (||) False =/= or
+
 -- warn = foldl  (||) False ==> or where note = IncreasesLaziness
+proof86 :: forall f. Foldable f => Proof
+proof86 = foldl @f (||) False =/= or
+
+
 -- warn = foldr1 (||)  ==> or where note = RemovesError "on []"
 -- warn = foldl1 (||)  ==> or where note = RemovesError "on []"
 -- warn = foldl  (+) 0 ==> sum
