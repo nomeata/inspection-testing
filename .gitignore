@@ -1,6 +1,7 @@
 dist
 dist-*
 cabal-dev
+.ghc.environment.*
 *.o
 *.hi
 *.chi

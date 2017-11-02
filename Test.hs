@@ -1,14 +1,17 @@
-{-# OPTIONS_GHC -fplugin GHC.Proof.Plugin #-}
-module Test (foo, bar, proofs) where
+{-# LANGUAGE TemplateHaskell #-}
+{-# OPTIONS_GHC -fplugin Test.Inspection.Plugin #-}
+module Test (foo, bar) where
 
-import GHC.Proof
+import Test.Inspection
 
 foo = 1
 bar = 1
+baz = 2
 
-proofs = [proof1,proof2]
+-- Inspection test
 
-proof1 = proof foo foo
-proof2 = proof foo bar
+'foo === 'bar
+'bar === 'foo
+'foo =/= 'baz
 
 

@@ -1,4 +1,8 @@
-# Revision history for ghc-proofs
+# Revision history for inspection-tests
+
+## 0.1 -- UNRELEASED
+
+* Repackages as inspection-test
 
 ## 0.1.1  -- 2017-09-05
 
@@ -10,4 +14,4 @@
 
 ## 0  -- 2017-02-06
 
-* Development commences
+* Development of ghc-proofs commences

@@ -1,6 +1,6 @@
--- | See "GHC.Proof".
+-- | See "Test.Inspection".
 {-# LANGUAGE CPP #-}
-module GHC.Proof.Plugin (plugin) where
+module Test.Inspection.Plugin (plugin) where
 
 import Data.Maybe
 import Control.Monad
@@ -16,15 +16,15 @@ import FamInstEnv
 import SimplEnv
 import CSE
 
--- import GHC.Proof
+-- import Test.Inspection
 
 plugin :: Plugin
 plugin = defaultPlugin { installCoreToDos = install }
 
 install :: [CommandLineOption] -> [CoreToDo] -> CoreM [CoreToDo]
 install _ (simpl:xs) = return $ simpl: myOccurPass : pass : xs
-  where pass = CoreDoPluginPass "GHC.Proof" proofPass
-        myOccurPass = CoreDoPluginPass "GHC.Proof Occur" occurPass
+  where pass = CoreDoPluginPass "Test.Inspection" proofPass
+        myOccurPass = CoreDoPluginPass "Test.Inspection Occur" occurPass
 
 
 type Task = (SDoc, Bool, [CoreBndr], CoreExpr, CoreExpr)
@@ -50,25 +50,25 @@ findProofTask _ = Nothing
 isProof :: Name -> Bool
 isProof n =
     occNameString oN == "proof" &&
-    moduleNameString (moduleName (nameModule n)) == "GHC.Proof"
+    moduleNameString (moduleName (nameModule n)) == "Test.Inspection"
  || occNameString oN == "===" &&
-    moduleNameString (moduleName (nameModule n)) == "GHC.Proof"
+    moduleNameString (moduleName (nameModule n)) == "Test.Inspection"
   where oN = occName n
 
 isNonProof :: Name -> Bool
 isNonProof n =
     occNameString oN == "non_proof" &&
-    moduleNameString (moduleName (nameModule n)) == "GHC.Proof"
+    moduleNameString (moduleName (nameModule n)) == "Test.Inspection"
  || occNameString oN == "=/=" &&
-    moduleNameString (moduleName (nameModule n)) == "GHC.Proof"
+    moduleNameString (moduleName (nameModule n)) == "Test.Inspection"
   where oN = occName n
 
 
 proveTask :: ModGuts -> Task -> CoreM Bool
 proveTask guts (name, really, bndrs, e1, e2) = do
     if really
-      then putMsg (text "GHC.Proof: Proving" <+> name <+> text "…")
-      else putMsg (text "GHC.Proof: Not proving" <+> name <+> text "…")
+      then putMsg (text "Test.Inspection: Proving" <+> name <+> text "…")
+      else putMsg (text "Test.Inspection: Not proving" <+> name <+> text "…")
 
     se1 <- simplify guts bndrs e1
     se2 <- simplify guts bndrs e2
@@ -142,7 +142,7 @@ simplEnv :: [Var] -> Int -> SimplEnv
 simplEnv vars p = env1
   where
     env1 = addNewInScopeIds env0 vars
-    env0 =  mkSimplEnv $ SimplMode { sm_names = ["GHC.Proof"]
+    env0 =  mkSimplEnv $ SimplMode { sm_names = ["Test.Inspection"]
                                    , sm_phase = Phase p
                                    , sm_rules = True
                                    , sm_inline = True
@@ -154,7 +154,7 @@ proofPass guts = do
 
     dflags <- getDynFlags
     when (optLevel dflags < 1) $
-        warnMsg $ fsep $ map text $ words "GHC.Proof: Compilation without -O detected. Expect proofs to fail."
+        warnMsg $ fsep $ map text $ words "Test.Inspection: Compilation without -O detected. Expect proofs to fail."
 
 
     tasks <- findProofTasks guts
@@ -163,10 +163,10 @@ proofPass guts = do
       then do
         let n = length [ () | (_, True, _, _, _) <- tasks ]
         let m = length [ () | (_, False, _, _, _) <- tasks ]
-        putMsg $ text "GHC.Proof proved" <+> ppr n <+> text "equalities"
+        putMsg $ text "Test.Inspection proved" <+> ppr n <+> text "equalities"
         return guts
       else do
-        errorMsg $ text "GHC.Proof could not prove all equalities"
+        errorMsg $ text "Test.Inspection could not prove all equalities"
         liftIO $ exitFailure -- kill the compiler. Is there a nicer way?
 
 occurPass :: PluginPass
