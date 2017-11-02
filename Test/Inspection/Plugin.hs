@@ -1,5 +1,6 @@
 -- | See "Test.Inspection".
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE RecordWildCards #-}
 module Test.Inspection.Plugin (plugin) where
 
 import Data.Maybe
@@ -27,25 +28,22 @@ install _ (simpl:xs) = return $ simpl: myOccurPass : pass : xs
         myOccurPass = CoreDoPluginPass "Test.Inspection Occur" occurPass
 
 
-type Task = (SDoc, Bool, [CoreBndr], CoreExpr, CoreExpr)
+type Task = (SDoc, Bool, CoreExpr, CoreExpr)
 
 findProofTasks :: ModGuts -> CoreM [Task]
-findProofTasks guts = return $ mapMaybe findProofTask (mg_binds guts)
+findProofTasks guts =
+    return $ mapMaybe findProofTaskRule (mg_rules guts)
 
-
-findProofTask :: CoreBind -> Maybe Task
-findProofTask (NonRec name e)
-    | (bndrs, body) <- collectBinders e
-    , (Var v `App` Type _ `App` e1 `App` e2) <- body
+findProofTaskRule :: CoreRule -> Maybe Task
+findProofTaskRule (Rule{..})
+    | (Var v `App` Type _ `App` e1 `App` e2) <- ru_rhs
     , isProof (idName v)
-    = Just (ppr name, True, bndrs, e1,e2)
-findProofTask (NonRec name e)
-    | (bndrs, body) <- collectBinders e
-    , (Var v `App` Type _ `App` e1 `App` e2) <- body
+    = Just (ppr ru_name, True, e1,e2)
+findProofTaskRule (Rule{..})
+    | (Var v `App` Type _ `App` e1 `App` e2) <- ru_rhs
     , isNonProof (idName v)
-    = Just (ppr name, False, bndrs, e1,e2)
-findProofTask _ = Nothing
-
+    = Just (ppr ru_name, False, e1,e2)
+findProofTaskRule _ = Nothing
 
 isProof :: Name -> Bool
 isProof n =
@@ -65,13 +63,13 @@ isNonProof n =
 
 
 proveTask :: ModGuts -> Task -> CoreM Bool
-proveTask guts (name, really, bndrs, e1, e2) = do
+proveTask guts (name, really, e1, e2) = do
     if really
       then putMsg (text "Test.Inspection: Proving" <+> name <+> text "…")
       else putMsg (text "Test.Inspection: Not proving" <+> name <+> text "…")
 
-    se1 <- simplify guts bndrs e1
-    se2 <- simplify guts bndrs e2
+    se1 <- simplify guts e1
+    se2 <- simplify guts e2
     let differences = diffExpr False (mkRnEnv2 emptyInScopeSet) se1 se2
 
     if really
@@ -97,8 +95,8 @@ proveTask guts (name, really, bndrs, e1, e2) = do
 itemize :: [SDoc] -> SDoc
 itemize = vcat . map (char '•' <+>)
 
-simplify :: ModGuts -> [Var] -> CoreExpr -> CoreM CoreExpr
-simplify guts more_in_scope expr = do
+simplify :: ModGuts -> CoreExpr -> CoreM CoreExpr
+simplify guts expr = do
     dflags <- getDynFlags
 
 #if  __GLASGOW_HASKELL__ >= 801
@@ -116,7 +114,7 @@ simplify guts more_in_scope expr = do
         rule_base2 = extendRuleBaseList rule_base1 (mg_rules guts)
     vis_orphs <- getVisibleOrphanMods
     let rule_env = RuleEnv rule_base2 vis_orphs
-    let in_scope = bindersOfBinds (mg_binds guts) ++ more_in_scope
+    let in_scope = bindersOfBinds (mg_binds guts)
 
     (expr', _) <- liftIO $ initSmpl dflags' rule_env emptyFamInstEnvs us sz $ do
             return expr >>= simplExpr (simplEnv in_scope 4) . occurAnalyseExpr
@@ -161,8 +159,8 @@ proofPass guts = do
     ok <- and <$> mapM (proveTask guts) tasks
     if ok
       then do
-        let n = length [ () | (_, True, _, _, _) <- tasks ]
-        let m = length [ () | (_, False, _, _, _) <- tasks ]
+        let n = length [ () | (_, True, _, _) <- tasks ]
+        let m = length [ () | (_, False, _, _) <- tasks ]
         putMsg $ text "Test.Inspection proved" <+> ppr n <+> text "equalities"
         return guts
       else do

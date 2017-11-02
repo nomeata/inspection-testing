@@ -67,6 +67,7 @@
 -- of what works.
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE GADTSyntax #-}
 module Test.Inspection ((===), (=/=)) where
 
 import Control.Monad
@@ -85,35 +86,33 @@ non_proof :: a -> a -> ()
 non_proof _ _ = ()
 {-# NOINLINE non_proof #-}
 
-keep_alive :: a -> a
-keep_alive = id
-{-# NOINLINE keep_alive #-}
+obligation :: ()
+obligation = ()
+{-# NOINLINE obligation #-}
 
 -- The exported TH functions
 
 newtype Cntr = Cntr Int
 
-oblName :: Q Name
+oblName :: Q String
 oblName = do
     Cntr n <- fromMaybe (Cntr 0) <$> getQ
     let !m = n + 1
     putQ (Cntr m)
-    newName $ "obligation" ++ show m
+    pure $ "obligation" ++ show m
 
 (===) :: Name -> Name -> Q [Dec]
 n1 === n2 = do
     n <- oblName
-    def <-   [d| $(varP n) = proof $(varE n1) $(varE n2) |]
-    let p1 = [PragmaD (InlineP n NoInline FunLike AllPhases)]
-    p2 <-    [d| {-# RULES "keep-alive" keep_alive $(varE n) = $(varE n) #-} |]
-    return (def ++ p1 ++ p2)
+    lhs <- [| obligation  |]
+    rhs <- [| proof $(varE n1) $(varE n2) |]
+    pure [PragmaD (RuleP n [] lhs rhs AllPhases)]
 infix 0 ===
 
 (=/=) :: Name -> Name -> Q [Dec]
 n1 =/= n2 = do
     n <- oblName
-    def <-   [d| $(varP n) = non_proof $(varE n1) $(varE n2) |]
-    let p1 = [PragmaD (InlineP n NoInline FunLike AllPhases)]
-    p2 <-    [d| {-# RULES "keep-alive" keep_alive $(varE n) = $(varE n) #-} |]
-    return (def ++ p1 ++ p2)
+    lhs <- [| obligation  |]
+    rhs <- [| non_proof $(varE n1) $(varE n2) |]
+    pure [PragmaD (RuleP n [] lhs rhs AllPhases)]
 infix 0 =/=

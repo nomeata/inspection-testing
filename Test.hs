@@ -13,5 +13,6 @@ baz = 2
 'foo === 'bar
 'bar === 'foo
 'foo =/= 'baz
+'bar =/= 'baz
 
 
