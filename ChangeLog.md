@@ -1,8 +1,8 @@
-# Revision history for inspection-tests
+# Revision history for inspection-testing
 
 ## 0.1 -- UNRELEASED
 
-* Repackages as inspection-test
+* Repackaged as inspection-testing
 
 ## 0.1.1  -- 2017-09-05
 

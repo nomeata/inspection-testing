@@ -1,6 +1,6 @@
-name:                inspection-test
+name:                inspection-testing
 version:             0.1
-synopsis:            GHC plugin to do inspection testing
+synopsis:            GHC plugin to do inspection esting
 description:         Some carefully crafted libraries make promises to their
                      users beyond functionality and performance.
                      .
@@ -54,7 +54,7 @@ test-suite NS_NP
   type:                exitcode-stdio-1.0
   hs-source-dirs:      examples
   main-is:             NS_NP.hs
-  build-depends:       inspection-test
+  build-depends:       inspection-testing
   build-depends:       base >=4.9 && <4.11
   default-language:    Haskell2010
   ghc-options:         -main-is NS_NP
@@ -64,7 +64,7 @@ test-suite generic-lens
   type:                exitcode-stdio-1.0
   hs-source-dirs:      examples
   main-is:             GenericLens.hs
-  build-depends:       inspection-test
+  build-depends:       inspection-testing
   build-depends:       base >=4.9 && <4.11
   build-depends:       generic-lens ==0.4.0.1
   default-language:    Haskell2010
@@ -74,7 +74,7 @@ test-suite simple
   type:                exitcode-stdio-1.0
   hs-source-dirs:      examples
   main-is:             Simple.hs
-  build-depends:       inspection-test
+  build-depends:       inspection-testing
   build-depends:       base >=4.9 && <4.11
   default-language:    Haskell2010
   ghc-options:         -main-is Simple
