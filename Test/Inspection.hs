@@ -1,118 +1,81 @@
 -- |
--- Description : Let GHC prove program equations
+-- Description : Inspection Testing for Haskell
 -- Copyright   : (c) Joachim Breitner, 2017
 -- License     : MIT
 -- Maintainer  : mail@joachim-breitner.de
 -- Portability : GHC specifc
 --
 -- This module supports the accompanying GHC plugin "Test.Inspection.Plugin" and adds
--- to GHC the ability to verify simple program equations.
+-- to GHC the ability to do inspeciton testing.
 --
--- = Synopis
---
--- Consider this module:
---
--- > {-# OPTIONS_GHC -O -fplugin Test.Inspection.Plugin #-}
--- > module Simple where
--- >
--- > import Test.Inspection
--- > import Data.Maybe
--- >
--- > my_proof1 :: (a -> b) -> Maybe a -> Proof
--- > my_proof1 f x = isNothing (fmap f x)
--- >             === isNothing x
--- >
--- > my_proof2 :: a -> Maybe a -> Proof
--- > my_proof2 d x = fromMaybe d x
--- >             === maybe d id x
---
--- Compiling it will result in this output:
---
--- > $ ghc Simple.hs
--- > [1 of 1] Compiling Simple           ( Simple.hs, Simple.o )
--- > Test.Inspection: Proving my_proof1 …
--- > Test.Inspection: Proving my_proof2 …
--- > Test.Inspection proved 2 equalities
---
--- = Usage
---
--- To use this plugin, you have to
---
--- *   Make sure you load the plugin @Test.Inspection.Plugin@, either by passing
---     @-fplugin Test.Inspection.Plugin@ to GHC or, more conveniently, using the
---     @OPTIONS_GHC@ pragma as above.
---
--- *   Import the @Test.Inspection@ module.
---
--- *   Define proof obligations using the 'proof' function or, equilvalently, the
---     '===' operator. Type signatures are optional.
---
---     These proof obligation must occur direclty on the
---     right-hand side of a top-level definition, where all parameters (if any)
---     are plain variables. For example, this would (currently) not work:
---
---     > not_good (f,x) = isNothing (fmap f x) === isNothing x
---
---     If your module has an explicit export list, then these functions need to
---     be exported (otherwise the compiler deletes them too quickly).
---
--- *   Compile. If all proof obligations can be proven, compilation continues as
---     usual; otherwise it aborts.
---
--- = What can I prove this way?
---
--- Who knows... but generally you can only expect interesting results when you
--- use functions that are either non-recursive, or have an extensive rewrite
--- rule setup (such as lists). See the @examples/@ directory for some examples
--- of what works.
+-- TODO: Write this documentation. For now, see the READE.md
+
 {-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE GADTSyntax #-}
-module Test.Inspection ((===), (=/=)) where
+module Test.Inspection ((===), (=/=), Obligation(..), THName(..)) where
 
 import Control.Monad
 import Language.Haskell.TH
-import Language.Haskell.TH.Syntax (getQ, putQ)
+import Language.Haskell.TH.Syntax (getQ, putQ, liftData)
+import Data.Data
 
 import Data.Maybe (fromMaybe)
 
--- Some internal names, to be used to mark the obligations
+import Debug.Trace
 
-proof :: a -> a -> ()
-proof _ _ = ()
-{-# NOINLINE proof #-}
-
-non_proof :: a -> a -> ()
-non_proof _ _ = ()
-{-# NOINLINE non_proof #-}
-
-obligation :: ()
-obligation = ()
-{-# NOINLINE obligation #-}
+import Test.Inspection.Internal
 
 -- The exported TH functions
 
 newtype Cntr = Cntr Int
 
+{-
 oblName :: Q String
 oblName = do
     Cntr n <- fromMaybe (Cntr 0) <$> getQ
     let !m = n + 1
     putQ (Cntr m)
     pure $ "obligation" ++ show m
+-}
 
+rememberName :: Name -> Q [Dec]
+rememberName n = do
+    let thName = THName n
+    thNameExpr <- liftData thName
+    -- lhs <- [| keep_alive |]
+    -- rhs <- [| $(varE n) |]
+    pure [ PragmaD (AnnP (ValueAnnotation n) thNameExpr)
+
+         -- Unclear if this is required to keep the name alive,
+         -- or if the annotation is enough. It looks like it...
+         -- , PragmaD (RuleP ("keepAlive/"++nameBase n) [] lhs rhs AllPhases)
+         ]
+
+-- | This splice asserts that the two referenced functions are equal
+-- after compilation.
 (===) :: Name -> Name -> Q [Dec]
-n1 === n2 = do
-    n <- oblName
+(===) = annotateEquality True
+infix 0 ===
+
+-- | This splice asserts that one wants the two referenced functions
+-- to be equal after compilation, but the compiler is not up to it yet.
+-- (This is useful for documentation purposes, or as a TODO list.)
+(=/=) :: Name -> Name -> Q [Dec]
+(=/=) = annotateEquality False
+infix 0 =/=
+
+annotateEquality :: Bool -> Name -> Name -> Q [Dec]
+annotateEquality really n1 n2 = do
+    let ann = Equal really n1 n2
+    annExpr <- liftData ann
+
+    -- n <- oblName
+    concat <$> (sequence
+        [ rememberName n1
+        , rememberName n2
+        , pure [PragmaD (AnnP ModuleAnnotation annExpr)]
+        ])
+{-
     lhs <- [| obligation  |]
     rhs <- [| proof $(varE n1) $(varE n2) |]
     pure [PragmaD (RuleP n [] lhs rhs AllPhases)]
-infix 0 ===
-
-(=/=) :: Name -> Name -> Q [Dec]
-n1 =/= n2 = do
-    n <- oblName
-    lhs <- [| obligation  |]
-    rhs <- [| non_proof $(varE n1) $(varE n2) |]
-    pure [PragmaD (RuleP n [] lhs rhs AllPhases)]
-infix 0 =/=
+-}

@@ -1,10 +1,10 @@
-{-# LANGUAGE RankNTypes, DeriveGeneric, TypeApplications, DataKinds, ExistentialQuantification #-}
-{-# OPTIONS_GHC -O -fplugin GHC.Proof.Plugin #-}
-module GenericLens (fieldALensManual, fieldALensGenericYoneda, proof1) where
+{-# LANGUAGE RankNTypes, DeriveGeneric, TypeApplications, DataKinds, ExistentialQuantification, TemplateHaskell #-}
+{-# OPTIONS_GHC -O -fplugin Test.Inspection.Plugin #-}
+module GenericLens (main) where
 
 import GHC.Generics
 import Data.Generics.Product
-import GHC.Proof
+import Test.Inspection
 
 data Record = MkRecord { fieldA :: Int
                        , fieldB :: Bool
@@ -32,8 +32,7 @@ ravel :: Functor f => ((a -> Coyoneda f b) -> (s -> Coyoneda f t))
                    -> (a -> f b) -> (s -> f t)
 ravel coy f s = inj $ coy (\a -> proj (f a)) s
 
--- the proof
-
+-- the examples
 
 fieldALensGeneric :: Lens' Record Int
 fieldALensGeneric = field @"fieldA"
@@ -41,5 +40,9 @@ fieldALensGeneric = field @"fieldA"
 fieldALensGenericYoneda :: Lens' Record Int
 fieldALensGenericYoneda = ravel (field @"fieldA")
 
-proof1 f = fieldALensManual f === fieldALensGenericYoneda f
+main :: IO ()
+main = return ()
+
+-- the check
+'fieldALensManual === 'fieldALensGenericYoneda
 
