@@ -119,7 +119,7 @@ checkTask guts (name, really, n1, n2) = do
         return False
     result e1 e2 True False = do
         putMsg $
-            text "Obligation failes" $$
+            text "Obligation fails" $$
             nest 4 (hang (text "LHS" <> colon) 4 (ppr e1)) $$
             nest 4 (hang (text "RHS" <> colon) 4 (ppr e2))
         return False

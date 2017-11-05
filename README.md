@@ -35,7 +35,7 @@ Test.Inspection proved 1 equalities
 
 See the [`examples/`](examples/) directory for more examples of working proofs.
 
-If an assertion failes, for example
+If an assertion fails, for example
 
 ```haskell
 bad1, bad2 :: Int
