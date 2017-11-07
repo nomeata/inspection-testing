@@ -106,19 +106,21 @@ freeOfType slice tcN = listToMaybe [ (v,e) | (v,e) <- slice, not (go e) ]
 doesNotAllocate :: [(Var, CoreExpr)] -> Maybe (Var, CoreExpr)
 doesNotAllocate slice = listToMaybe [ (v,e) | (v,e) <- slice, not (go (idArity v) e) ]
   where
-    go a (Var v)                     = (a >= idArity v)
-    go _ (Lit _ )                    = True
-    go a (App e arg) | isTypeArg arg = go a e
-    go a (App e arg)                 = go (a+1) e && goArg arg
-    go a (Lam b e) | isTyVar b       = go a e
-    go 0 (Lam _ _)                   = False
-    go a (Lam _ e)                   = go (a-1) e
-    go a (Let bind body)             = all goB (flattenBinds [bind]) && go a body
-    go a (Case s _ _ alts)           = go 0 s && all (goA a) alts
-    go a (Cast e _)                  = go a e
-    go a (Tick _ e)                  = go a e
-    go _ (Type _)                    = True
-    go _ (Coercion _)                = True
+    go _ (Var v)
+      | isDataConWorkId v, idArity v > 0 = False
+    go a (Var v)                         = (a >= idArity v)
+    go _ (Lit _ )                        = True
+    go a (App e arg) | isTypeArg arg     = go a e
+    go a (App e arg)                     = go (a+1) e && goArg arg
+    go a (Lam b e) | isTyVar b           = go a e
+    go 0 (Lam _ _)                       = False
+    go a (Lam _ e)                       = go (a-1) e
+    go a (Let bind body)                 = all goB (flattenBinds [bind]) && go a body
+    go a (Case s _ _ alts)               = go 0 s && all (goA a) alts
+    go a (Cast e _)                      = go a e
+    go a (Tick _ e)                      = go a e
+    go _ (Type _)                        = True
+    go _ (Coercion _)                    = True
 
     goArg e | exprIsTrivial e             = go 0 e
             | isUnliftedType (exprType e) = go 0 e

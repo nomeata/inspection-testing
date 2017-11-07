@@ -30,8 +30,12 @@ sumUp2 n = go 1 0
         go m s | m == n     = (s + m)
                | otherwise = go (m+1) (s+m)
 
+dup :: a -> (a,a)
+dup x = (x,x)
+
 inspect $ 'sumUp1 === 'sumUp2
 
 inspect $ 'sumUp1 `hasNoType` ''[]
 inspect $ ('sumUp1 `hasNoType` ''Int) { expectFail = True }
 inspect $ mkObligation 'sumUp1 NoAllocation
+inspect $ mkObligation 'dup NoAllocation
