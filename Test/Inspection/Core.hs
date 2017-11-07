@@ -6,10 +6,8 @@ module Test.Inspection.Core
 
 import CoreSyn
 import TyCoRep
-import TyCon
 import Var
 import Name
-import Outputable
 
 freeOfType :: Name -> CoreExpr -> Bool
 freeOfType tcN = go
@@ -37,6 +35,6 @@ freeOfType tcN = go
                         -- ↑ This is the crucial bit
     goT (ForAllTy _ t)   = goT t
     goT (FunTy t1 t2)    = goT t1 && goT t2
-    goT (LitTy t)        = True
+    goT (LitTy _)        = True
     goT (CastTy t _)     = goT t
     goT (CoercionTy _)   = True

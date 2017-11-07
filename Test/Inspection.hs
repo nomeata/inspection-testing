@@ -28,8 +28,6 @@ import Data.Data
 import Data.Maybe (fromMaybe)
 import qualified Data.Set as S
 
-import Debug.Trace
-
 import Test.Inspection.Internal
 
 {- $synposis

@@ -50,6 +50,7 @@ library
   build-depends:       template-haskell
   build-depends:       containers
   default-language:    Haskell2010
+  ghc-options:         -Wall -Wno-name-shadowing
 
 test-suite NS_NP
   type:                exitcode-stdio-1.0

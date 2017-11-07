@@ -4,20 +4,15 @@
 {-# LANGUAGE MultiWayIf #-}
 module Test.Inspection.Plugin (plugin) where
 
-import Data.Maybe
 import Control.Monad
 import System.Exit
 import Data.Either
+import Data.Maybe
 import Data.List
-import qualified Data.Map as M
 import Data.Bifunctor
 import qualified Language.Haskell.TH.Syntax as TH
 
 import GhcPlugins hiding (SrcLoc)
-import Simplify
-import CoreStats
-import CoreMonad
-
 
 import Test.Inspection.Internal (KeepAlive(..))
 import Test.Inspection (Obligation(..), Property(..))
@@ -42,7 +37,7 @@ isKeepAliveAnn :: Annotation -> Bool
 isKeepAliveAnn (Annotation (NamedTarget _) payload)
     | Just KeepAlive <- fromSerialized deserializeWithData payload
     = True
-fepAliveAnnindNamingAnn _
+isKeepAliveAnn _
     = False
 
 findObligationAnn :: Annotation -> Maybe Obligation
@@ -59,8 +54,10 @@ prettyObligation mod (Obligation {..}) =
     (if expectFail then " (failure expected)" else "")
 
 prettyProperty :: Module -> TH.Name -> Property -> String
-prettyProperty mod target (EqualTo n2) = showTHName mod target ++ " === " ++ showTHName mod n2
-prettyProperty mod target (NoType t)   = showTHName mod target ++ " `hasNoType` " ++ showTHName mod t
+prettyProperty mod target (EqualTo n2)        = showTHName mod target ++ " === " ++ showTHName mod n2
+prettyProperty mod target (NoType t)          = showTHName mod target ++ " `hasNoType` " ++ showTHName mod t
+prettyProperty mod target NoAllocation        = showTHName mod target ++ " does not allocate"
+prettyProperty mod target NoAllocationInLoop  = showTHName mod target ++ " does not allocate in a loop"
 
 -- | Like show, but omit the module name if it is he current module
 showTHName :: Module -> TH.Name -> String
@@ -94,7 +91,11 @@ checkObligation guts obl = do
 type Result =  Maybe (CoreM ())
 
 lookupNameInGuts :: ModGuts -> Name -> Maybe (Var, CoreExpr)
-lookupNameInGuts guts n = find ((== n) . getName . fst) (flattenBinds (mg_binds guts))
+lookupNameInGuts guts n = listToMaybe
+    [ (v,e)
+    | (v,e) <- flattenBinds (mg_binds guts)
+    , getName v == n
+    ]
 
 checkProperty :: ModGuts -> TH.Name -> Property -> CoreM Result
 checkProperty guts thn1 (EqualTo thn2) = do
@@ -107,18 +108,18 @@ checkProperty guts thn1 (EqualTo thn2) = do
     if | n1 == n2
        -> return Nothing
        -- Ok if one points to another
-       | Just (v1, Var v2) <- p1, getName v2 == n2
+       | Just (_, Var other) <- p1, getName other == n2
        -> return Nothing
-       | Just (v2, Var v1) <- p2, getName v1 == n1
+       | Just (_, Var other) <- p2, getName other == n1
        -> return Nothing
        -- OK if they have the same expression
-       | Just (v1, e1) <- p1
-       , Just (v2, e2) <- p2
+       | Just (_, e1) <- p1
+       , Just (_, e2) <- p2
        , e1 `eq` e2
        -> return Nothing
        -- Not ok if the expression differ
-       | Just (v1, e1) <- p1
-       , Just (v2, e2) <- p2
+       | Just (_, e1) <- p1
+       , Just (_, e2) <- p2
        -> pure . Just $ do
             putMsg $
                 nest 4 (hang (text "LHS" <> colon) 4 (ppr e1)) $$
@@ -141,9 +142,12 @@ checkProperty guts thn (NoType tht) = do
         Just (_ ,e) | freeOfType t e -> pure Nothing
                     | otherwise -> pure . Just $ putMsg $ nest 4 (ppr e)
 
-
-itemize :: [SDoc] -> SDoc
-itemize = vcat . map (char '•' <+>)
+checkProperty _guts _thn NoAllocation = do
+        pure . Just $ do
+            putMsgS "not implemented"
+checkProperty _guts _thn NoAllocationInLoop = do
+        pure . Just $ do
+            putMsgS "not implemented"
 
 proofPass :: ModGuts -> CoreM ModGuts
 proofPass guts = do
@@ -155,7 +159,7 @@ proofPass guts = do
     ok <- and <$> mapM (checkObligation guts') obligations
     if ok
       then do
-        let (m,n) = bimap length length $ partition expectFail obligations
+        let (_m,n) = bimap length length $ partition expectFail obligations
         putMsg $ text "Test.Inspection tested" <+> ppr n <+>
                  text "obligation" <> (if n == 1 then empty else text "s")
         return guts'
