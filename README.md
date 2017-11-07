@@ -59,6 +59,22 @@ Obligation fails
 examples/Simple.hs: error: inspection testing unsuccessful
 ```
 
+What can I check for
+--------------------
+
+Currently, inspection-testing supports
+
+ * checking two definitions to be equal (useful in the context of generic programming)
+ * checking the absence of a certain type (useful in the context of list or stream fusion)
+ * checking the absence of allocation (generally useful)
+
+Possible further applications includes
+
+ * checking that all recursive functions are (efficiently called) join-points
+ * asserting strictness properties (e.g. in `Data.Map.Strict`)
+ * peforming some of these checks only within recursive loops
+
+Let me know if you need any of these, or have further ideas.
 
 Can I comment or help?
 ----------------------

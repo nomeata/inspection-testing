@@ -18,7 +18,7 @@ module Test.Inspection (
     -- * Registering obligations
     inspect,
     -- * Defining obligations
-    Obligation(..), Property(..), (===), (=/=), hasNoType, ) where
+    Obligation(..), mkObligation, Property(..), (===), (=/=), hasNoType, ) where
 
 import Control.Monad
 import Language.Haskell.TH
@@ -98,9 +98,6 @@ data Property
 
     -- | Does this function perform no heap allocations.
     | NoAllocation
-
-    -- | Does this function perform no heap allocations inside a loop.
-    | NoAllocationInLoop
     deriving Data
 
 allLocalNames :: Obligation -> [Name]

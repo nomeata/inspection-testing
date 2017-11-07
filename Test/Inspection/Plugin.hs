@@ -57,7 +57,6 @@ prettyProperty :: Module -> TH.Name -> Property -> String
 prettyProperty mod target (EqualTo n2)        = showTHName mod target ++ " === " ++ showTHName mod n2
 prettyProperty mod target (NoType t)          = showTHName mod target ++ " `hasNoType` " ++ showTHName mod t
 prettyProperty mod target NoAllocation        = showTHName mod target ++ " does not allocate"
-prettyProperty mod target NoAllocationInLoop  = showTHName mod target ++ " does not allocate in a loop"
 
 -- | Like show, but omit the module name if it is he current module
 showTHName :: Module -> TH.Name -> String
@@ -139,15 +138,16 @@ checkProperty guts thn (NoType tht) = do
     case lookupNameInGuts guts n of
         Nothing -> pure . Just $ do
             putMsg $ ppr n <+> text "is not a local name"
-        Just (_ ,e) | freeOfType t e -> pure Nothing
+        Just (_, e) | freeOfType t e -> pure Nothing
                     | otherwise -> pure . Just $ putMsg $ nest 4 (ppr e)
 
-checkProperty _guts _thn NoAllocation = do
-        pure . Just $ do
-            putMsgS "not implemented"
-checkProperty _guts _thn NoAllocationInLoop = do
-        pure . Just $ do
-            putMsgS "not implemented"
+checkProperty guts thn NoAllocation = do
+    Just n <- thNameToGhcName thn
+    case lookupNameInGuts guts n of
+        Nothing -> pure . Just $ do
+            putMsg $ ppr n <+> text "is not a local name"
+        Just (v, e) | doesNotAllocate v e -> pure Nothing
+                    | otherwise -> pure . Just $ putMsg $ nest 4 (ppr v <+> text "=" <+> ppr e)
 
 proofPass :: ModGuts -> CoreM ModGuts
 proofPass guts = do
