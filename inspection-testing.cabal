@@ -90,3 +90,14 @@ test-suite fusion
   default-language:    Haskell2010
   ghc-options:         -main-is Fusion
 
+test-suite text
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      examples
+  main-is:             Text.hs
+  build-depends:       inspection-testing
+  build-depends:       base >=4.9 && <4.12
+  build-depends:       text ==1.2.2.2
+  build-depends:       bytestring
+  default-language:    Haskell2010
+  ghc-options:         -main-is Text
+
