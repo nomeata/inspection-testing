@@ -21,6 +21,7 @@ import CoreMonad
 
 import Test.Inspection.Internal (KeepAlive(..))
 import Test.Inspection (Obligation(..), Property(..))
+import Test.Inspection.Core
 
 plugin :: Plugin
 plugin = defaultPlugin { installCoreToDos = install }
@@ -137,8 +138,8 @@ checkProperty guts thn (NoType tht) = do
     case lookupNameInGuts guts n of
         Nothing -> pure . Just $ do
             putMsg $ ppr n <+> text "is not a local name"
-        Just (_ ,e) -> pure . Just $ do
-            putMsgS $ "NoType is not implemented yet"
+        Just (_ ,e) | freeOfType t e -> pure Nothing
+                    | otherwise -> pure . Just $ putMsg $ nest 4 (ppr e)
 
 
 itemize :: [SDoc] -> SDoc

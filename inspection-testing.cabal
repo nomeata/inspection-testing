@@ -44,6 +44,7 @@ library
   exposed-modules:     Test.Inspection
                        Test.Inspection.Plugin
                        Test.Inspection.Internal
+                       Test.Inspection.Core
   build-depends:       base >=4.9 && <4.12
   build-depends:       ghc >= 8.2 && <8.4
   build-depends:       template-haskell

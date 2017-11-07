@@ -28,8 +28,9 @@ sumUp2 n | 1 > n = 0
 sumUp2 n = go 1 0
     where
         go m s | m == n     = (s + m)
-               | otherwise = go (m+1) (s+m) 
+               | otherwise = go (m+1) (s+m)
 
 inspect $ 'sumUp1 === 'sumUp2
 
 inspect $ 'sumUp1 `hasNoType` ''[]
+inspect $ ('sumUp1 `hasNoType` ''Int) { expectFail = True }
