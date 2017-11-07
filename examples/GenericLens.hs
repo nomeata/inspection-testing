@@ -44,5 +44,5 @@ main :: IO ()
 main = return ()
 
 -- the check
-'fieldALensManual === 'fieldALensGenericYoneda
+inspect $ 'fieldALensManual === 'fieldALensGenericYoneda
 

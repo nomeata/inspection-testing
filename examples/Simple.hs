@@ -11,7 +11,7 @@ lhs f x = isNothing (fmap f x)
 rhs f Nothing = True
 rhs f (Just _) = False
 
-'lhs === 'rhs
+inspect $ 'lhs === 'rhs
 
 main :: IO ()
 main = return ()

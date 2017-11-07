@@ -7,75 +7,176 @@
 --
 -- This module supports the accompanying GHC plugin "Test.Inspection.Plugin" and adds
 -- to GHC the ability to do inspeciton testing.
---
--- TODO: Write this documentation. For now, see the READE.md
 
 {-# LANGUAGE TemplateHaskell #-}
-module Test.Inspection ((===), (=/=), Obligation(..), THName(..)) where
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE StandaloneDeriving #-}
+module Test.Inspection (
+    -- * Synopsis
+    -- $synposis
+
+    -- * Registering obligations
+    inspect,
+    -- * Defining obligations
+    Obligation(..), Property(..), (===), (=/=), hasNoType, ) where
 
 import Control.Monad
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax (getQ, putQ, liftData)
 import Data.Data
+import GHC.Stack
 
 import Data.Maybe (fromMaybe)
+import qualified Data.Set as S
 
 import Debug.Trace
 
 import Test.Inspection.Internal
 
+{- $synposis
+
+To use inspection testing, you need to
+
+ 1. enable the @TemplateHaskell@ langauge extension
+ 2. load the plugin using @-fplugin Test.Inspection.Plugin@
+ 3. declare your proof obligations using 'inspect'
+
+An example module is
+
+@
+{&#45;\# LANGAUGE TemplateHaskell \#&#45;}
+{&#45;\# OPTIONS_GHC -O -fplugin Test.Inspection.Plugin \#&#45;}
+module Simple where
+
+import Test.Inspection
+import Data.Maybe
+
+lhs, rhs :: (a -> b) -> Maybe a -> Bool
+lhs f x = isNothing (fmap f x)
+rhs f Nothing = True
+rhs f (Just _) = False
+
+inspect $ 'lhs === 'rhs
+@
+-}
+
+-- Description of test obligations
+
+-- | This data type describes an inspection testing obligation.
+--
+-- It is recommended to build it using 'mkObligation', for backwards
+-- compatibility when new fields are added. You can also use the more
+-- memonic convenience functions like '(===)' or 'hasNoType'.
+--
+-- The obligation needs to be passed to 'inspect'.
+data Obligation = Obligation
+    { target      :: Name
+        -- ^ The target of a test obligation; invariably the name of a local
+        -- definition. To get the name of a function @foo@, write @'foo@. This requires
+        -- @{&#45;\# LANGAUGE TemplateHaskell \#&#45;}@.
+    , property    :: Property
+        -- ^ The property of the target to be checked.
+    , testName :: Maybe String
+        -- ^ An optional name for the test
+    , expectFail  :: Bool
+        -- ^ Do we expect this property to fail?
+    , srcLoc :: Maybe SrcLoc
+        -- ^ The source location where this obligation is defined.
+        -- This is filled in by 'inspect'.
+    }
+    deriving Data
+
+-- | Properties of the obligation target to be checked.
+data Property
+    -- | Are the two functions equal?
+    --
+    -- More precisely: @f@ is equal to @g@ if either the definition of @f@ is
+    -- @f = g@, or the definition of @g@ is @g = f@, or if the definitions are
+    -- @f = e@ and @g = e@.
+    = EqualTo Name
+
+    -- | Does this type not occur anywhere in the definition of the function
+    -- (neither locally bound nor passed as arguments)
+    | NoType Name
+
+    -- | Does this function perform no heap allocations.
+    | NoAllocation
+
+    -- | Does this function perform no heap allocations inside a loop.
+    | NoAllocationInLoop
+    deriving Data
+
+deriving instance Data SrcLoc
+
+allLocalNames :: Obligation -> [Name]
+allLocalNames obl = target obl : goProp (property obl)
+  where
+    goProp :: Property -> [Name]
+    goProp (EqualTo n) = [n]
+    goProp _ = []
+
+-- | Creates an inspection obligation for the given function name
+-- with default values for the optional fields.
+mkObligation :: Name -> Property -> Obligation
+mkObligation target prop = Obligation
+    { target = target
+    , property = prop
+    , testName = Nothing
+    , srcLoc = Nothing
+    , expectFail = False
+    }
+
+-- | Convenience function to declare two functions to be equal
+(===) :: Name -> Name -> Obligation
+(===) = mkEquality False
+infix 1 ===
+
+-- | Convenience function to declare two functions to be equal, but expect the test to fail
+-- (This is useful for documentation purposes, or as a TODO list.)
+(=/=) :: Name -> Name -> Obligation
+(=/=) = mkEquality True
+infix 1 =/=
+
+mkEquality :: Bool -> Name -> Name -> Obligation
+mkEquality expectFail n1 n2 = (mkObligation n1 (EqualTo n2)) { expectFail = expectFail }
+
+-- | Convenience function to declare that a function’s implementation does not
+-- mention a type
+--
+-- @inspect $ fusedFunction `hasNoType` ''[]@
+hasNoType :: Name -> Name -> Obligation
+hasNoType n tn = mkObligation n (NoType tn)
+
 -- The exported TH functions
 
-newtype Cntr = Cntr Int
+-- | As seen in the example above, the entry point to inspection testing is the
+-- 'inspect' function, to which you pass an 'Obligation'.
+inspect :: HasCallStack => Obligation -> Q [Dec]
+inspect obl = registerObligation (snd (head (getCallStack callStack))) obl
 
-{-
-oblName :: Q String
-oblName = do
-    Cntr n <- fromMaybe (Cntr 0) <$> getQ
-    let !m = n + 1
-    putQ (Cntr m)
-    pure $ "obligation" ++ show m
--}
+
+registerObligation :: SrcLoc -> Obligation -> Q [Dec]
+registerObligation srcLoc obl = do
+    annExpr <- liftData (obl { srcLoc = Just srcLoc })
+    rememberDs <- concat <$> mapM rememberName (allLocalNames obl)
+    pure $ PragmaD (AnnP ModuleAnnotation annExpr) : rememberDs
+
+-- We need to ensure that names refernced in obligations are kept alive
+-- We do so by annotating them with 'KeepAlive'
+
+newtype SeenNames = SeenNames (S.Set Name)
+
+-- Annotate each name only once
+nameSeen :: Name -> Q Bool
+nameSeen n = do
+    SeenNames s <- fromMaybe (SeenNames S.empty) <$> getQ
+    let seen = n `S.member` s
+    unless seen $ putQ $ SeenNames (S.insert n s)
+    pure seen
 
 rememberName :: Name -> Q [Dec]
 rememberName n = do
-    let thName = THName n
-    thNameExpr <- liftData thName
-    -- lhs <- [| keep_alive |]
-    -- rhs <- [| $(varE n) |]
-    pure [ PragmaD (AnnP (ValueAnnotation n) thNameExpr)
-
-         -- Unclear if this is required to keep the name alive,
-         -- or if the annotation is enough. It looks like it...
-         -- , PragmaD (RuleP ("keepAlive/"++nameBase n) [] lhs rhs AllPhases)
-         ]
-
--- | This splice asserts that the two referenced functions are equal
--- after compilation.
-(===) :: Name -> Name -> Q [Dec]
-(===) = annotateEquality True
-infix 0 ===
-
--- | This splice asserts that one wants the two referenced functions
--- to be equal after compilation, but the compiler is not up to it yet.
--- (This is useful for documentation purposes, or as a TODO list.)
-(=/=) :: Name -> Name -> Q [Dec]
-(=/=) = annotateEquality False
-infix 0 =/=
-
-annotateEquality :: Bool -> Name -> Name -> Q [Dec]
-annotateEquality really n1 n2 = do
-    let ann = Equal really n1 n2
-    annExpr <- liftData ann
-
-    -- n <- oblName
-    concat <$> (sequence
-        [ rememberName n1
-        , rememberName n2
-        , pure [PragmaD (AnnP ModuleAnnotation annExpr)]
-        ])
-{-
-    lhs <- [| obligation  |]
-    rhs <- [| proof $(varE n1) $(varE n2) |]
-    pure [PragmaD (RuleP n [] lhs rhs AllPhases)]
--}
+    seen <- nameSeen n
+    if seen then return [] else do
+        kaExpr <- liftData KeepAlive
+        pure [ PragmaD (AnnP (ValueAnnotation n) kaExpr) ]

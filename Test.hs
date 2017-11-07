@@ -13,10 +13,23 @@ b f g = map (f . g)
 
 -- Inspection test
 
-'foo === 'bar
-'bar === 'foo
-'foo =/= 'baz
-'bar =/= 'baz
-'a === 'b
+inspect $ 'foo === 'bar
+inspect $ 'bar === 'foo
+inspect $ 'foo =/= 'baz
+inspect $ 'bar =/= 'baz
+inspect $ 'a === 'b
 
 
+sumUp1 :: Int -> Int
+sumUp1 n = sum [1..n]
+
+sumUp2 :: Int -> Int
+sumUp2 n | 1 > n = 0
+sumUp2 n = go 1 0
+    where
+        go m s | m == n     = (s + m)
+               | otherwise = go (m+1) (s+m) 
+
+inspect $ 'sumUp1 === 'sumUp2
+
+inspect $ 'sumUp1 `hasNoType` ''[]

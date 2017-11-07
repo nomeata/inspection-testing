@@ -41,4 +41,4 @@ roundtrip_id x = x
 main :: IO ()
 main = return ()
 
-'roundtrip === 'roundtrip_id
+inspect $ 'roundtrip === 'roundtrip_id

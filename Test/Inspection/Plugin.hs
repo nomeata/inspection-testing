@@ -1,6 +1,7 @@
 -- | See "Test.Inspection".
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE MultiWayIf #-}
 module Test.Inspection.Plugin (plugin) where
 
 import Data.Maybe
@@ -12,13 +13,15 @@ import qualified Data.Map as M
 import Data.Bifunctor
 import qualified Language.Haskell.TH.Syntax as TH
 
-import GhcPlugins
+import GhcPlugins hiding (SrcLoc)
+import GHC.Stack
 import Simplify
 import CoreStats
 import CoreMonad
 
 
-import Test.Inspection.Internal (Obligation(..), THName(..))
+import Test.Inspection.Internal (KeepAlive(..))
+import Test.Inspection (Obligation(..), Property(..))
 
 plugin :: Plugin
 plugin = defaultPlugin { installCoreToDos = install }
@@ -28,105 +31,116 @@ install _ passes = return $ passes ++ [pass]
   where pass = CoreDoPluginPass "Test.Inspection" proofPass
 
 
-type Task = (SDoc, Bool, Name, Name)
-
-extractTasks :: ModGuts -> (ModGuts, [Task])
-extractTasks guts = (guts { mg_rules = rules', mg_anns = anns' }, tasks)
+extractObligations :: ModGuts -> (ModGuts, [Obligation])
+extractObligations guts = (guts { mg_rules = rules', mg_anns = anns_clean }, obligations)
   where
     rules' = mg_rules guts
-    -- (rules', tasks) = partitionMaybe findTaskRule (mg_rules guts)
-    ((anns', tasks), table) = bimap (partitionMaybe (findTaskAnn table)) mconcat $
-                            partitionMaybe findNamingAnn (mg_anns guts)
+    (anns', obligations) = partitionMaybe findObligationAnn (mg_anns guts)
+    anns_clean = filter (not . isKeepAliveAnn) anns'
 
-type THNameEnv = M.Map TH.Name Name
+isKeepAliveAnn :: Annotation -> Bool
+isKeepAliveAnn (Annotation (NamedTarget _) payload)
+    | Just KeepAlive <- fromSerialized deserializeWithData payload
+    = True
+fepAliveAnnindNamingAnn _
+    = False
 
-findNamingAnn :: Annotation -> Maybe THNameEnv
-findNamingAnn (Annotation (NamedTarget coreName) payload)
-    | Just (THName thName) <- fromSerialized deserializeWithData payload
-    = Just $ M.singleton thName coreName
-findNamingAnn _
+findObligationAnn :: Annotation -> Maybe Obligation
+findObligationAnn (Annotation (ModuleTarget _) payload)
+    | Just obl <- fromSerialized deserializeWithData payload
+    = Just obl
+findObligationAnn _
     = Nothing
 
-findTaskAnn :: THNameEnv -> Annotation -> Maybe Task
-findTaskAnn env (Annotation (ModuleTarget _) payload)
-    | Just (Equal really thn1 thn2) <- fromSerialized deserializeWithData payload
-    , ~(Just n1) <- M.lookup thn1 env
-    , ~(Just n2) <- M.lookup thn2 env
-    = Just (text "foo", really, n1, n2)
-findTaskAnn _ _
-    = Nothing
+prettyObligation :: Module -> Obligation -> String
+prettyObligation mod (Obligation {..}) =
+    maybe "" myPrettySrcLoc srcLoc ++ ": " ++
+    "inspecting " ++ prettyProperty mod target property ++
+    (if expectFail then " (failure expected)" else "")
 
-{- Alternative transport mechanism in RULES
-findTaskRule :: CoreRule -> Maybe Task
-findTaskRule (Rule{..})
-    | (Var v `App` Type _ `App` e1 `App` e2) <- ru_rhs
-    , (Var v1, args1) <- collectArgs e1
-    , all isTypeArg args1
-    , (Var v2, args2) <- collectArgs e2
-    , all isTypeArg args2
-    , Just really <- isProof (idName v)
-    = Just (ppr ru_name, really, getName v1, getName v2)
-findTaskRule _ = Nothing
+prettyProperty :: Module -> TH.Name -> Property -> String
+prettyProperty mod target (EqualTo n2) = showTHName mod target ++ " === " ++ showTHName mod n2
+prettyProperty mod target (NoType t)   = showTHName mod target ++ " `hasNoType` " ++ showTHName mod t
 
-isProof :: Name -> Maybe Bool
-isProof n
-    | occNameString oN == "proof"
-    , moduleNameString (moduleName (nameModule n)) == "Test.Inspection"
-    = Just True
-    | occNameString oN == "==="
-    , moduleNameString (moduleName (nameModule n)) == "Test.Inspection"
-    = Just True
-    | occNameString oN == "non_proof"
-    , moduleNameString (moduleName (nameModule n)) == "Test.Inspection"
-    = Just False
-    | occNameString oN == "=/="
-    , moduleNameString (moduleName (nameModule n)) == "Test.Inspection"
-    = Just False
-    | otherwise
-    = Nothing
-  where oN = occName n
--}
+-- | Like show, but omit the module name if it is he current module
+showTHName :: Module -> TH.Name -> String
+showTHName mod (TH.Name occ (TH.NameQ m))
+    | moduleNameString (moduleName mod) == TH.modString m = TH.occString occ
+showTHName mod (TH.Name occ (TH.NameG _ _ m))
+    | moduleNameString (moduleName mod) == TH.modString m = TH.occString occ
+showTHName _ n = show n
 
-checkTask :: ModGuts -> Task -> CoreM Bool
-checkTask guts (name, really, n1, n2) = do
-    let task_descr = ppr n1 <+> text "===" <+> ppr n2
+checkObligation :: ModGuts -> Obligation -> CoreM Bool
+checkObligation guts obl = do
+    putMsgS $ prettyObligation (mg_module guts) obl
 
-    if really
-      then putMsg $ text "Test.Inspection:     Checking" <+> task_descr
-      else putMsg $ text "Test.Inspection: Not checking" <+> task_descr
+    res <- checkProperty guts (target obl) (property obl)
 
-    case ( find ((== n1) . getName . fst) (flattenBinds (mg_binds guts))
-         , find ((== n2) . getName . fst) (flattenBinds (mg_binds guts))) of
-        (Nothing, _) -> do
-            putMsg $ text "Cannot find" <+> ppr n1
+    case (res, expectFail obl) of
+        -- Property holds
+        (Nothing, False) -> do
+            return True
+        (Nothing, True) -> do
+            putMsgS "Obligation passes unexpectedly"
             return False
-        (_, Nothing) -> do
-            putMsg $ text "Cannot find" <+> ppr n2
+        -- Property does not hold
+        (Just reportMsg, False) -> do
+            putMsgS "Obligation fails"
+            reportMsg
             return False
-        (Just (v1,e1), Just (v2,e2)) -> do
+        (Just _, True) -> do
+            return True
 
-            let ok = or [ e1 `eq` e2
-                        , e1 `eq` Var v2
-                        , Var v1 `eq` e2
-                        ]
+type Result =  Maybe (CoreM ())
 
-            result e1 e2 really ok
+lookupNameInGuts :: ModGuts -> Name -> Maybe (Var, CoreExpr)
+lookupNameInGuts guts n = find ((== n) . getName . fst) (flattenBinds (mg_binds guts))
+
+checkProperty :: ModGuts -> TH.Name -> Property -> CoreM Result
+checkProperty guts thn1 (EqualTo thn2) = do
+    Just n1 <- thNameToGhcName thn1
+    Just n2 <- thNameToGhcName thn2
+
+    let p1 = lookupNameInGuts guts n1
+    let p2 = lookupNameInGuts guts n2
+
+    if | n1 == n2
+       -> return Nothing
+       -- Ok if one points to another
+       | Just (v1, Var v2) <- p1, getName v2 == n2
+       -> return Nothing
+       | Just (v2, Var v1) <- p2, getName v1 == n1
+       -> return Nothing
+       -- OK if they have the same expression
+       | Just (v1, e1) <- p1
+       , Just (v2, e2) <- p2
+       , e1 `eq` e2
+       -> return Nothing
+       -- Not ok if the expression differ
+       | Just (v1, e1) <- p1
+       , Just (v2, e2) <- p2
+       -> pure . Just $ do
+            putMsg $
+                nest 4 (hang (text "LHS" <> colon) 4 (ppr e1)) $$
+                nest 4 (hang (text "RHS" <> colon) 4 (ppr e2))
+       -- Not ok if both names are bound externally
+       | Nothing <- p1
+       , Nothing <- p2
+       -> pure . Just $ do
+            putMsg $ ppr n1 <+> text " and " <+> ppr n2 <+>
+                text "are different external names"
   where
-    result _ _ True True = do
-        return True
-    result _ _ False True = do
-        putMsg $ text "Obligation passes unexpectedly"
-        return False
-    result e1 e2 True False = do
-        putMsg $
-            text "Obligation fails" $$
-            nest 4 (hang (text "LHS" <> colon) 4 (ppr e1)) $$
-            nest 4 (hang (text "RHS" <> colon) 4 (ppr e2))
-        return False
-    result _ _ False False  = do
-        return True
-
     eq = eqExpr emptyInScopeSet
+
+checkProperty guts thn (NoType tht) = do
+    Just n <- thNameToGhcName thn
+    Just t <- thNameToGhcName tht
+    case lookupNameInGuts guts n of
+        Nothing -> pure . Just $ do
+            putMsg $ ppr n <+> text "is not a local name"
+        Just (_ ,e) -> pure . Just $ do
+            putMsgS $ "NoType is not implemented yet"
+
 
 itemize :: [SDoc] -> SDoc
 itemize = vcat . map (char '•' <+>)
@@ -135,20 +149,29 @@ proofPass :: ModGuts -> CoreM ModGuts
 proofPass guts = do
     dflags <- getDynFlags
     when (optLevel dflags < 1) $
-        warnMsg $ fsep $ map text $ words "Test.Inspection: Compilation without -O detected. Expect proofs to fail."
+        warnMsg $ fsep $ map text $ words "Test.Inspection: Compilation without -O detected. Expect optimizations to fail."
 
-    let (guts', tasks) = extractTasks guts
-    ok <- and <$> mapM (checkTask guts') tasks
+    let (guts', obligations) = extractObligations guts
+    ok <- and <$> mapM (checkObligation guts') obligations
     if ok
       then do
-        let n = length [ () | (_, True, _, _) <- tasks ]
-        let m = length [ () | (_, False, _, _) <- tasks ]
-        putMsg $ text "Test.Inspection proved" <+> ppr n <+> text "equalities"
+        let (m,n) = bimap length length $ partition expectFail obligations
+        putMsg $ text "Test.Inspection tested" <+> ppr n <+>
+                 text "obligation" <> (if n == 1 then empty else text "s")
         return guts'
       else do
-        errorMsg $ text "Test.Inspection could not prove all equalities"
+        errorMsg $ text "inspection testing unsuccessful"
         liftIO $ exitFailure -- kill the compiler. Is there a nicer way?
 
 
 partitionMaybe :: (a -> Maybe b) -> [a] -> ([a], [b])
 partitionMaybe f = partitionEithers . map (\x -> maybe (Left x) Right (f x))
+
+-- | like prettySrcLoc, but omits the module name
+myPrettySrcLoc :: SrcLoc -> String
+myPrettySrcLoc SrcLoc {..}
+  = foldr (++) ""
+      [ srcLocFile, ":"
+      , show srcLocStartLine, ":"
+      , show srcLocStartCol
+      ]
