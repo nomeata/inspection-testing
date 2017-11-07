@@ -138,16 +138,18 @@ checkProperty guts thn (NoType tht) = do
     case lookupNameInGuts guts n of
         Nothing -> pure . Just $ do
             putMsg $ ppr n <+> text "is not a local name"
-        Just (_, e) | freeOfType t e -> pure Nothing
+        Just (_, e) | freeOfType binds t e -> pure Nothing
                     | otherwise -> pure . Just $ putMsg $ nest 4 (ppr e)
+  where binds = flattenBinds (mg_binds guts)
 
 checkProperty guts thn NoAllocation = do
     Just n <- thNameToGhcName thn
     case lookupNameInGuts guts n of
         Nothing -> pure . Just $ do
             putMsg $ ppr n <+> text "is not a local name"
-        Just (v, e) | doesNotAllocate v e -> pure Nothing
+        Just (v, e) | doesNotAllocate binds v e -> pure Nothing
                     | otherwise -> pure . Just $ putMsg $ nest 4 (ppr v <+> text "=" <+> ppr e)
+  where binds = flattenBinds (mg_binds guts)
 
 proofPass :: ModGuts -> CoreM ModGuts
 proofPass guts = do
