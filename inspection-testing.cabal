@@ -44,7 +44,7 @@ library
   exposed-modules:     Test.Inspection
                        Test.Inspection.Plugin
                        Test.Inspection.Internal
-  build-depends:       base >=4.9 && <4.11
+  build-depends:       base >=4.9 && <4.12
   build-depends:       ghc >= 8.2 && <8.4
   build-depends:       template-haskell
   build-depends:       containers
@@ -55,7 +55,7 @@ test-suite NS_NP
   hs-source-dirs:      examples
   main-is:             NS_NP.hs
   build-depends:       inspection-testing
-  build-depends:       base >=4.9 && <4.11
+  build-depends:       base >=4.9 && <4.12
   default-language:    Haskell2010
   ghc-options:         -main-is NS_NP
 
@@ -65,7 +65,7 @@ test-suite generic-lens
   hs-source-dirs:      examples
   main-is:             GenericLens.hs
   build-depends:       inspection-testing
-  build-depends:       base >=4.9 && <4.11
+  build-depends:       base >=4.9 && <4.12
   build-depends:       generic-lens ==0.4.0.1
   default-language:    Haskell2010
   ghc-options:         -main-is GenericLens
@@ -75,7 +75,7 @@ test-suite simple
   hs-source-dirs:      examples
   main-is:             Simple.hs
   build-depends:       inspection-testing
-  build-depends:       base >=4.9 && <4.11
+  build-depends:       base >=4.9 && <4.12
   default-language:    Haskell2010
   ghc-options:         -main-is Simple
 
