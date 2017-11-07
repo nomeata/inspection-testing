@@ -112,9 +112,9 @@ checkProperty guts thn1 (EqualTo thn2) = do
        | Just (_, Var other) <- p2, getName other == n1
        -> return Nothing
        -- OK if they have the same expression
-       | Just (_, e1) <- p1
-       , Just (_, e2) <- p2
-       , e1 `eq` e2
+       | Just (v1, _) <- p1
+       , Just (v2, _) <- p2
+       , eqSlice (slice binds v1) (slice binds v2)
        -> return Nothing
        -- Not ok if the expression differ
        | Just (_, e1) <- p1
@@ -130,7 +130,7 @@ checkProperty guts thn1 (EqualTo thn2) = do
             putMsg $ ppr n1 <+> text " and " <+> ppr n2 <+>
                 text "are different external names"
   where
-    eq = eqExpr emptyInScopeSet
+    binds = flattenBinds (mg_binds guts)
 
 checkProperty guts thn (NoType tht) = do
     Just n <- thNameToGhcName thn

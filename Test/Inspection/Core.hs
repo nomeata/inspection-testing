@@ -3,6 +3,7 @@
 {-# LANGUAGE CPP #-}
 module Test.Inspection.Core
   ( slice
+  , eqSlice
   , freeOfType
   , doesNotAllocate
   ) where
@@ -14,6 +15,8 @@ import Type
 import Var
 import Id
 import Name
+import VarEnv
+import Literal (nullAddrLit)
 
 import qualified Data.Set as S
 import Data.Maybe
@@ -49,6 +52,15 @@ slice binds v = [(v,e) | (v,e) <- binds, v `S.member` used ]
     go (Coercion _)                = pure ()
 
     goA (_, _, e) = go e
+
+-- | This is a heuristic, which only works if both slices
+-- have auxillary variables in the right order.
+-- (This is mostly to work-around the buggy CSE in GHC-8.0)
+-- It also breaks if there is shadowing.
+eqSlice :: [(Var, CoreExpr)] -> [(Var, CoreExpr)] -> Bool
+eqSlice slice1 slice2 =
+    eqExpr emptyInScopeSet (Let (Rec slice1) (Lit nullAddrLit))
+                           (Let (Rec slice2) (Lit nullAddrLit))
 
 -- | Returns @True@ if the given core expression mentions no type constructor
 -- anywhere that has the given name.
@@ -116,6 +128,8 @@ doesNotAllocate slice = listToMaybe [ (v,e) | (v,e) <- slice, not (go (idArity v
 #if MIN_VERSION_GLASGOW_HASKELL(8,2,0,0)
         | isJoinId b                = go (idArity b) e
 #endif
+        -- Not sure when a local function definition allocates…
+        | isFunTy (idType b)        = go (idArity b) e
         | isUnliftedType (idType b) = go (idArity b) e
         | otherwise                 = False
         -- A let binding allocates if any variable is not a join point and not
