@@ -5,14 +5,14 @@ module Fusion where
 import Test.Inspection
 import Data.List (foldl', sort)
 
-sumUp1 :: Int -> Int
-sumUp1 n = sum [1..n]
+sumUp1 :: Int -> Bool
+sumUp1 n = sum [1..n] > 1000
 
-sumUp2 :: Int -> Int
-sumUp2 n | 1 > n = 0
-sumUp2 n = go 1 0
+sumUp2 :: Int -> Bool
+sumUp2 n | 1 > n = False
+sumUp2 n = go 1 0 > 1000
     where
-        go m s | m == n     = (s + m)
+        go m s | m == n    = (s + m)
                | otherwise = go (m+1) (s+m)
 
 -- Example for a non-fusing funtion
