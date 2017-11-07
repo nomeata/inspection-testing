@@ -14,7 +14,6 @@ import Data.Bifunctor
 import qualified Language.Haskell.TH.Syntax as TH
 
 import GhcPlugins hiding (SrcLoc)
-import GHC.Stack
 import Simplify
 import CoreStats
 import CoreMonad
@@ -168,10 +167,10 @@ partitionMaybe :: (a -> Maybe b) -> [a] -> ([a], [b])
 partitionMaybe f = partitionEithers . map (\x -> maybe (Left x) Right (f x))
 
 -- | like prettySrcLoc, but omits the module name
-myPrettySrcLoc :: SrcLoc -> String
-myPrettySrcLoc SrcLoc {..}
+myPrettySrcLoc :: TH.Loc -> String
+myPrettySrcLoc TH.Loc {..}
   = foldr (++) ""
-      [ srcLocFile, ":"
-      , show srcLocStartLine, ":"
-      , show srcLocStartCol
+      [ loc_filename, ":"
+      , show (fst loc_start), ":"
+      , show (snd loc_start)
       ]

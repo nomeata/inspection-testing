@@ -24,7 +24,6 @@ import Control.Monad
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax (getQ, putQ, liftData)
 import Data.Data
-import GHC.Stack
 
 import Data.Maybe (fromMaybe)
 import qualified Data.Set as S
@@ -80,7 +79,7 @@ data Obligation = Obligation
         -- ^ An optional name for the test
     , expectFail  :: Bool
         -- ^ Do we expect this property to fail?
-    , srcLoc :: Maybe SrcLoc
+    , srcLoc :: Maybe Loc
         -- ^ The source location where this obligation is defined.
         -- This is filled in by 'inspect'.
     }
@@ -105,8 +104,6 @@ data Property
     -- | Does this function perform no heap allocations inside a loop.
     | NoAllocationInLoop
     deriving Data
-
-deriving instance Data SrcLoc
 
 allLocalNames :: Obligation -> [Name]
 allLocalNames obl = target obl : goProp (property obl)
@@ -151,13 +148,10 @@ hasNoType n tn = mkObligation n (NoType tn)
 
 -- | As seen in the example above, the entry point to inspection testing is the
 -- 'inspect' function, to which you pass an 'Obligation'.
-inspect :: HasCallStack => Obligation -> Q [Dec]
-inspect obl = registerObligation (snd (head (getCallStack callStack))) obl
-
-
-registerObligation :: SrcLoc -> Obligation -> Q [Dec]
-registerObligation srcLoc obl = do
-    annExpr <- liftData (obl { srcLoc = Just srcLoc })
+inspect :: Obligation -> Q [Dec]
+inspect obl = do
+    loc <- location
+    annExpr <- liftData (obl { srcLoc = Just loc })
     rememberDs <- concat <$> mapM rememberName (allLocalNames obl)
     pure $ PragmaD (AnnP ModuleAnnotation annExpr) : rememberDs
 
