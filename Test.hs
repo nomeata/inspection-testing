@@ -20,12 +20,12 @@ inspect $ 'bar =/= 'baz
 inspect $ 'a === 'b
 
 
-sumUp1 :: Int -> Int
-sumUp1 n = sum [1..n]
+sumUp1 :: Int -> Bool
+sumUp1 n = sum [1..n] > 1000
 
-sumUp2 :: Int -> Int
-sumUp2 n | 1 > n = 0
-sumUp2 n = go 1 0
+sumUp2 :: Int -> Bool
+sumUp2 n | 1 > n = False
+sumUp2 n = go 1 0 > 1000
     where
         go m s | m == n     = (s + m)
                | otherwise = go (m+1) (s+m)
@@ -38,4 +38,4 @@ inspect $ 'sumUp1 === 'sumUp2
 inspect $ 'sumUp1 `hasNoType` ''[]
 inspect $ ('sumUp1 `hasNoType` ''Int) { expectFail = True }
 inspect $ mkObligation 'sumUp1 NoAllocation
-inspect $ mkObligation 'dup NoAllocation
+inspect $ (mkObligation 'dup NoAllocation) { expectFail = True }

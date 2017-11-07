@@ -18,12 +18,19 @@ import Test.Inspection.Internal (KeepAlive(..))
 import Test.Inspection (Obligation(..), Property(..))
 import Test.Inspection.Core
 
+-- | The plugin. It supports the option @-fplugin-opt=Test.Inspection.Plugin=keep-going@ to
+-- ignore a failing build.
 plugin :: Plugin
 plugin = defaultPlugin { installCoreToDos = install }
 
+data UponFailure = AbortCompilation | KeepGoing deriving Eq
+
 install :: [CommandLineOption] -> [CoreToDo] -> CoreM [CoreToDo]
-install _ passes = return $ passes ++ [pass]
-  where pass = CoreDoPluginPass "Test.Inspection" proofPass
+install args passes = return $ passes ++ [pass]
+  where
+    pass = CoreDoPluginPass "Test.Inspection" (proofPass upon_failure)
+    upon_failure | "keep-going" `elem` args = KeepGoing
+                 | otherwise                = AbortCompilation
 
 
 extractObligations :: ModGuts -> (ModGuts, [Obligation])
@@ -153,8 +160,8 @@ checkProperty guts thn NoAllocation = do
             Nothing -> pure Nothing
   where binds = flattenBinds (mg_binds guts)
 
-proofPass :: ModGuts -> CoreM ModGuts
-proofPass guts = do
+proofPass :: UponFailure -> ModGuts -> CoreM ModGuts
+proofPass upon_failure guts = do
     dflags <- getDynFlags
     when (optLevel dflags < 1) $
         warnMsg $ fsep $ map text $ words "Test.Inspection: Compilation without -O detected. Expect optimizations to fail."
@@ -166,10 +173,15 @@ proofPass guts = do
         let (_m,n) = bimap length length $ partition expectFail obligations
         putMsg $ text "Test.Inspection tested" <+> ppr n <+>
                  text "obligation" <> (if n == 1 then empty else text "s")
-        return guts'
       else do
-        errorMsg $ text "inspection testing unsuccessful"
-        liftIO $ exitFailure -- kill the compiler. Is there a nicer way?
+        case upon_failure of
+            AbortCompilation -> do
+                errorMsg $ text "inspection testing unsuccessful"
+                liftIO $ exitFailure -- kill the compiler. Is there a nicer way?
+            KeepGoing -> do
+                warnMsg $ text "inspection testing unsuccessful"
+    return guts'
+
 
 
 partitionMaybe :: (a -> Maybe b) -> [a] -> ([a], [b])
