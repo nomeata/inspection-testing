@@ -6,7 +6,7 @@
 -- Portability : GHC specifc
 --
 -- This module supports the accompanying GHC plugin "Test.Inspection.Plugin" and adds
--- to GHC the ability to do inspeciton testing.
+-- to GHC the ability to do inspection testing.
 
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveDataTypeable #-}
