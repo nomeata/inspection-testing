@@ -13,7 +13,7 @@ See the `Test.Inspection` module for the documentation, but there really isn't m
 more to it than:
 
 ```haskell
-{-# LANGAUGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# OPTIONS_GHC -O -fplugin Test.Inspection.Plugin #-}
 module Simple where
 
