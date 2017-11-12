@@ -59,8 +59,8 @@ Obligation fails
 examples/Simple.hs: error: inspection testing unsuccessful
 ```
 
-What can I check for
---------------------
+What can I check for?
+---------------------
 
 Currently, inspection-testing supports
 
@@ -75,6 +75,16 @@ Possible further applications includes
  * peforming some of these checks only within recursive loops
 
 Let me know if you need any of these, or have further ideas.
+
+Help, I am drowining in Core!
+-----------------------------
+
+inspection-testing prints the Core more or less like GHC would, and the same
+flags can be used to control the level of detail. In particular, you might want
+to pass to GHC a selection of the following flags:
+
+    -dsuppress-idinfo -dsuppress-coercions -dsuppress-type-applications
+    -dsuppress-module-prefixes -dsuppress-type-signatures -dsuppress-uniques
 
 Can I comment or help?
 ----------------------
