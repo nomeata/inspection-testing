@@ -61,7 +61,8 @@ prettyObligation mod (Obligation {..}) =
     (if expectFail then " (failure expected)" else "")
 
 prettyProperty :: Module -> TH.Name -> Property -> String
-prettyProperty mod target (EqualTo n2)        = showTHName mod target ++ " === " ++ showTHName mod n2
+prettyProperty mod target (EqualTo n2 False)  = showTHName mod target ++ " === " ++ showTHName mod n2
+prettyProperty mod target (EqualTo n2 True)   = showTHName mod target ++ " ==- " ++ showTHName mod n2
 prettyProperty mod target (NoType t)          = showTHName mod target ++ " `hasNoType` " ++ showTHName mod t
 prettyProperty mod target NoAllocation        = showTHName mod target ++ " does not allocate"
 
@@ -104,7 +105,7 @@ lookupNameInGuts guts n = listToMaybe
     ]
 
 checkProperty :: ModGuts -> TH.Name -> Property -> CoreM Result
-checkProperty guts thn1 (EqualTo thn2) = do
+checkProperty guts thn1 (EqualTo thn2 ignore_types) = do
     Just n1 <- thNameToGhcName thn1
     Just n2 <- thNameToGhcName thn2
 
@@ -122,7 +123,7 @@ checkProperty guts thn1 (EqualTo thn2) = do
        , Just (v2, _) <- p2
        , let slice1 = slice binds v1
        , let slice2 = slice binds v2
-       -> if eqSlice slice1 slice2
+       -> if eqSlice ignore_types slice1 slice2
           -- OK if they have the same expression
           then return Nothing
           -- Not ok if the expression differ

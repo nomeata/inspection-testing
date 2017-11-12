@@ -21,6 +21,8 @@ import VarEnv
 import Literal (nullAddrLit)
 import Outputable
 import PprCore
+import Coercion
+import Util
 
 import qualified Data.Set as S
 import Data.Maybe
@@ -85,10 +87,66 @@ withLessDetail sdoc = withPprStyle defaultUserStyle sdoc
 -- have auxillary variables in the right order.
 -- (This is mostly to work-around the buggy CSE in GHC-8.0)
 -- It also breaks if there is shadowing.
-eqSlice :: Slice -> Slice -> Bool
-eqSlice slice1 slice2 =
-    eqExpr emptyInScopeSet (Let (Rec slice1) (Lit nullAddrLit))
-                           (Let (Rec slice2) (Lit nullAddrLit))
+eqSlice :: Bool {- ^ ignore types -} -> Slice -> Slice -> Bool
+-- Compares for equality, modulo alpha
+eqSlice it slice1 slice2
+  = go (mkRnEnv2 emptyInScopeSet)
+       (Let (Rec slice1) (Lit nullAddrLit))
+       (Let (Rec slice2) (Lit nullAddrLit))
+         -- this is a slight hack, for now
+  where
+    go env (Var v1) (Var v2)
+      | rnOccL env v1 == rnOccR env v2
+      = True
+    go _   (Lit lit1)    (Lit lit2)        = lit1 == lit2
+    go env (Type t1)     (Type t2)         = eqTypeX env t1 t2
+    go env (Coercion co1) (Coercion co2)   = eqCoercionX env co1 co2
+
+    go env (Cast e1 _) e2 | it             = go env e1 e2
+    go env e1 (Cast e2 _) | it             = go env e1 e2
+    go env (Cast e1 co1) (Cast e2 co2)     = eqCoercionX env co1 co2 && go env e1 e2
+
+    go env (App e1 a) e2 | it, isTypeArg a = go env e1 e2
+    go env e1 (App e2 a) | it, isTypeArg a = go env e1 e2
+    go env (App f1 a1)   (App f2 a2)       = go env f1 f2 && go env a1 a2
+    go env (Tick n1 e1)  (Tick n2 e2)      = go_tick env n1 n2 && go env e1 e2
+
+    go env (Lam b e1) e2 | it, isTyCoVar b = go env e1 e2
+    go env e1 (Lam b e2) | it, isTyCoVar b = go env e1 e2
+    go env (Lam b1 e1)  (Lam b2 e2)
+      =  (it || eqTypeX env (varType b1) (varType b2))  -- False for Id/TyVar combination
+      && go (rnBndr2 env b1 b2) e1 e2
+
+    go env (Let (NonRec v1 r1) e1) (Let (NonRec v2 r2) e2)
+      =  go env r1 r2  -- No need to check binder types, since RHSs match
+      && go (rnBndr2 env v1 v2) e1 e2
+
+    go env (Let (Rec ps1) e1) (Let (Rec ps2) e2)
+      = equalLength ps1 ps2
+      && all2 (go env') rs1 rs2 && go env' e1 e2
+      where
+        (bs1,rs1) = unzip ps1
+        (bs2,rs2) = unzip ps2
+        env' = rnBndrs2 env bs1 bs2
+
+    go env (Case e1 b1 t1 a1) (Case e2 b2 t2 a2)
+      | null a1   -- See Note [Empty case alternatives] in TrieMap
+      = null a2 && go env e1 e2 && (it || eqTypeX env t1 t2)
+      | otherwise
+      =  go env e1 e2 && all2 (go_alt (rnBndr2 env b1 b2)) a1 a2
+
+    go _ _ _ = False
+
+    -----------
+    go_alt env (c1, bs1, e1) (c2, bs2, e2)
+      = c1 == c2 && go (rnBndrs2 env bs1 bs2) e1 e2
+
+    go_tick :: RnEnv2 -> Tickish Id -> Tickish Id -> Bool
+    go_tick env (Breakpoint lid lids) (Breakpoint rid rids)
+          = lid == rid  &&  map (rnOccL env) lids == map (rnOccR env) rids
+    go_tick _ l r = l == r
+
+
 
 -- | Returns @True@ if the given core expression mentions no type constructor
 -- anywhere that has the given name.

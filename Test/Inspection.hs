@@ -18,7 +18,9 @@ module Test.Inspection (
     -- * Registering obligations
     inspect,
     -- * Defining obligations
-    Obligation(..), mkObligation, Property(..), (===), (=/=), hasNoType, ) where
+    Obligation(..), mkObligation, Property(..),
+    (===), (==-), (=/=), hasNoType,
+) where
 
 import Control.Monad
 import Language.Haskell.TH
@@ -90,7 +92,9 @@ data Property
     -- More precisely: @f@ is equal to @g@ if either the definition of @f@ is
     -- @f = g@, or the definition of @g@ is @g = f@, or if the definitions are
     -- @f = e@ and @g = e@.
-    = EqualTo Name
+    --
+    -- If the boolean flag is true, then ignore types during the comparison.
+    = EqualTo Name Bool
 
     -- | Does this type not occur anywhere in the definition of the function
     -- (neither locally bound nor passed as arguments)
@@ -104,7 +108,7 @@ allLocalNames :: Obligation -> [Name]
 allLocalNames obl = target obl : goProp (property obl)
   where
     goProp :: Property -> [Name]
-    goProp (EqualTo n) = [n]
+    goProp (EqualTo n _) = [n]
     goProp _ = []
 
 -- | Creates an inspection obligation for the given function name
@@ -120,17 +124,25 @@ mkObligation target prop = Obligation
 
 -- | Convenience function to declare two functions to be equal
 (===) :: Name -> Name -> Obligation
-(===) = mkEquality False
-infix 1 ===
+(===) = mkEquality False False
+infix 9 ===
+
+-- | Convenience function to declare two functions to be equal, but ignoring
+-- type lambdas, type arguments and type casts
+(==-) :: Name -> Name -> Obligation
+(==-) = mkEquality False True
+infix 9 ==-
 
 -- | Convenience function to declare two functions to be equal, but expect the test to fail
 -- (This is useful for documentation purposes, or as a TODO list.)
 (=/=) :: Name -> Name -> Obligation
-(=/=) = mkEquality True
-infix 1 =/=
+(=/=) = mkEquality True False
+infix 9 =/=
 
-mkEquality :: Bool -> Name -> Name -> Obligation
-mkEquality expectFail n1 n2 = (mkObligation n1 (EqualTo n2)) { expectFail = expectFail }
+mkEquality :: Bool -> Bool -> Name -> Name -> Obligation
+mkEquality expectFail ignore_types n1 n2 =
+    (mkObligation n1 (EqualTo n2 ignore_types))
+        { expectFail = expectFail }
 
 -- | Convenience function to declare that a function’s implementation does not
 -- mention a type
