@@ -118,18 +118,16 @@ checkProperty guts thn1 (EqualTo thn2) = do
        -> return Nothing
        | Just (_, Var other) <- p2, getName other == n1
        -> return Nothing
-       -- OK if they have the same expression
        | Just (v1, _) <- p1
        , Just (v2, _) <- p2
-       , eqSlice (slice binds v1) (slice binds v2)
-       -> return Nothing
-       -- Not ok if the expression differ
-       | Just (_, e1) <- p1
-       , Just (_, e2) <- p2
-       -> pure . Just $ do
-            putMsg $
-                nest 4 (hang (text "LHS" <> colon) 4 (ppr e1)) $$
-                nest 4 (hang (text "RHS" <> colon) 4 (ppr e2))
+       , let slice1 = slice binds v1
+       , let slice2 = slice binds v2
+       -> if eqSlice slice1 slice2
+          -- OK if they have the same expression
+          then return Nothing
+          -- Not ok if the expression differ
+          else pure . Just $ putMsg $
+            pprSliceDifference slice1 slice2
        -- Not ok if both names are bound externally
        | Nothing <- p1
        , Nothing <- p2

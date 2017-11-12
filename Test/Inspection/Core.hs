@@ -3,6 +3,8 @@
 {-# LANGUAGE CPP #-}
 module Test.Inspection.Core
   ( slice
+  , pprSlice
+  , pprSliceDifference
   , eqSlice
   , freeOfType
   , doesNotAllocate
@@ -17,14 +19,18 @@ import Id
 import Name
 import VarEnv
 import Literal (nullAddrLit)
+import Outputable
+import PprCore
 
 import qualified Data.Set as S
 import Data.Maybe
 import State
 import Control.Monad
 
+type Slice = [(Var, CoreExpr)]
+
 -- | Selects those bindings that define the given variable
-slice :: [(Var, CoreExpr)] -> Var -> [(Var,CoreExpr)]
+slice :: [(Var, CoreExpr)] -> Var -> Slice
 slice binds v = [(v,e) | (v,e) <- binds, v `S.member` used ]
   where
     used = execState (goV v) S.empty
@@ -53,18 +59,40 @@ slice binds v = [(v,e) | (v,e) <- binds, v `S.member` used ]
 
     goA (_, _, e) = go e
 
+-- | Pretty-print a slice
+pprSlice :: Slice -> SDoc
+pprSlice slice = withLessDetail $ pprCoreBindings [ NonRec v e  | (v,e) <- slice ]
+
+-- | Pretty-print two slices, after removing variables occurring in both
+pprSliceDifference :: Slice -> Slice -> SDoc
+pprSliceDifference slice1 slice2 =
+    nest 4 (hang (text "LHS" <> colon) 4 (pprSlice slice1')) $$
+    nest 4 (hang (text "RHS" <> colon) 4 (pprSlice slice2'))
+  where
+    both = S.intersection (S.fromList (map fst slice1)) (S.fromList (map fst slice2))
+    slice1' = filter (\(v,_) -> v `S.notMember` both) slice1
+    slice2' = filter (\(v,_) -> v `S.notMember` both) slice2
+
+withLessDetail :: SDoc -> SDoc
+#if MIN_VERSION_GLASGOW_HASKELL(8,2,0,0)
+withLessDetail sdoc = sdocWithDynFlags $ \dflags ->
+     withPprStyle (defaultUserStyle dflags) sdoc
+#else
+withLessDetail sdoc = withPprStyle defaultUserStyle sdoc
+#endif
+
 -- | This is a heuristic, which only works if both slices
 -- have auxillary variables in the right order.
 -- (This is mostly to work-around the buggy CSE in GHC-8.0)
 -- It also breaks if there is shadowing.
-eqSlice :: [(Var, CoreExpr)] -> [(Var, CoreExpr)] -> Bool
+eqSlice :: Slice -> Slice -> Bool
 eqSlice slice1 slice2 =
     eqExpr emptyInScopeSet (Let (Rec slice1) (Lit nullAddrLit))
                            (Let (Rec slice2) (Lit nullAddrLit))
 
 -- | Returns @True@ if the given core expression mentions no type constructor
 -- anywhere that has the given name.
-freeOfType :: [(Var, CoreExpr)] -> Name -> Maybe (Var, CoreExpr)
+freeOfType :: Slice -> Name -> Maybe (Var, CoreExpr)
 freeOfType slice tcN = listToMaybe [ (v,e) | (v,e) <- slice, not (go e) ]
   where
     goV v = goT (varType v)
@@ -103,7 +131,7 @@ freeOfType slice tcN = listToMaybe [ (v,e) | (v,e) <- slice, not (go e) ]
 -- allocate. It should probably at least look through local function calls.
 --
 -- The variable is important to know the arity of the function.
-doesNotAllocate :: [(Var, CoreExpr)] -> Maybe (Var, CoreExpr)
+doesNotAllocate :: Slice -> Maybe (Var, CoreExpr)
 doesNotAllocate slice = listToMaybe [ (v,e) | (v,e) <- slice, not (go (idArity v) e) ]
   where
     go _ (Var v)

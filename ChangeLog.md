@@ -1,5 +1,9 @@
 # Revision history for inspection-testing
 
+## 0.1.0.1 -- 2017-11-09
+
+* More complete output when `(===)` fails
+
 ## 0.1 -- 2017-11-09
 
 * Repackaged as inspection-testing
