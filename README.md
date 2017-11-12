@@ -33,8 +33,8 @@ If you compile this, you will reassurringly read:
 ```
 $ ghc Simple.hs
 [1 of 1] Compiling Simple           ( Simple.hs, Simple.o )
-examples/Simple.hs:14:1: inspecting lhs === rhs
-Test.Inspection tested 1 obligation
+examples/Simple.hs:14:1: lhs === rhs passed.
+Test.Inspection tested 1 obligation.
 ```
 
 See the [`examples/`](examples/) directory for more examples of working proofs.
@@ -50,13 +50,23 @@ inspect $ 'bad1 === 'bad2
 ```
 then the compiler will tell you so, and abort the compilation:
 ```
-$ ghc Simple.hs
-[1 of 1] Compiling Simple           ( Simple.hs, Simple.o )
-examples/Simple.hs:20:1: inspecting bad1 === bad2
-Obligation fails
-    LHS: ghc-prim-0.5.1.0:GHC.Types.I# 4#
-    RHS: ghc-prim-0.5.1.0:GHC.Types.I# 5#
-examples/Simple.hs: error: inspection testing unsuccessful
+$ ghc Simple.hs -dsuppress-idinfo
+[5 of 5] Compiling Simple           ( examples/Simple.hs, examples/Simple.o )
+examples/Simple.hs:14:1: lhs === rhs passed.
+examples/Simple.hs:20:1: bad1 === bad2 failed:
+    LHS:
+        bad1 :: Int
+        bad1 = I# 4#
+
+    RHS:
+        bad2 :: Int
+        bad2 = I# 5#
+
+
+examples/Simple.hs: error:
+    inspection testing unsuccessful
+          expected successes: 1
+         unexpected failures: 1
 ```
 
 What can I check for?
