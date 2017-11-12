@@ -62,16 +62,6 @@ test-suite NS_NP
   ghc-options:         -main-is NS_NP
 
 
-test-suite generic-lens
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      examples
-  main-is:             GenericLens.hs
-  build-depends:       inspection-testing
-  build-depends:       base >=4.9 && <4.12
-  build-depends:       generic-lens ==0.4.0.1
-  default-language:    Haskell2010
-  ghc-options:         -main-is GenericLens
-
 test-suite simple
   type:                exitcode-stdio-1.0
   hs-source-dirs:      examples
@@ -90,14 +80,34 @@ test-suite fusion
   default-language:    Haskell2010
   ghc-options:         -main-is Fusion
 
+flag more-tests
+  description: Run tests that pull in specific versions of other packages
+  default: False
+
 test-suite text
   type:                exitcode-stdio-1.0
   hs-source-dirs:      examples
   main-is:             Text.hs
-  build-depends:       inspection-testing
-  build-depends:       base >=4.9 && <4.12
-  build-depends:       text ==1.2.2.2
-  build-depends:       bytestring
+  if flag(more-tests)
+    build-depends:       inspection-testing
+    build-depends:       base >=4.9 && <4.12
+    build-depends:       text ==1.2.2.2
+    build-depends:       bytestring
+  else
+    buildable:         False
   default-language:    Haskell2010
   ghc-options:         -main-is Text
+
+test-suite generic-lens
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      examples
+  main-is:             GenericLens.hs
+  if flag(more-tests)
+    build-depends:       inspection-testing
+    build-depends:       base >=4.9 && <4.12
+    build-depends:       generic-lens ==0.4.0.1
+  else
+    buildable:         False
+  default-language:    Haskell2010
+  ghc-options:         -main-is GenericLens
 
