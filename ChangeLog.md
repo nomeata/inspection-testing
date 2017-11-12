@@ -1,5 +1,10 @@
 # Revision history for inspection-testing
 
+## 0.1.1.1 -- 2017-11-12
+
+* Show summary stats
+* Pull in less tests, to make inclusion in stackage easier
+
 ## 0.1.1 -- 2017-11-09
 
 * More complete output when `(===)` fails
