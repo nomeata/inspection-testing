@@ -8,7 +8,6 @@ import Control.Monad
 import System.Exit
 import Data.Either
 import Data.Maybe
-import Data.Foldable
 import qualified Data.Map.Strict as M
 import qualified Language.Haskell.TH.Syntax as TH
 
@@ -183,20 +182,21 @@ proofPass upon_failure guts = do
     stats <- M.unionsWith (+) <$> mapM (checkObligation guts') obligations
     let n = sum stats :: Int
 
-    let error_mesage = nest 2 $
-            vcat [ nest 2 (desc s) <> colon <+> ppr n
-                 | s <- [minBound..maxBound]
-                 , Just n <- return $ M.lookup s stats]
+    let q :: Stat -> Int
+        q s = fromMaybe 0 $ M.lookup s stats
 
-    if M.lookup ExpSuccess stats == Just n
-    then putMsg $ text "Test.Inspection tested" <+> ppr n <+>
-                  text "obligation" <> (if n == 1 then empty else text "s") <> dot
+    let summary_message = nest 2 $
+            vcat [ nest 2 (desc s) <> colon <+> ppr (q s)
+                 | s <- [minBound..maxBound], q s > 0 ]
+
+    if q ExpSuccess + q ExpFailure == n
+    then putMsg $ text "inspection testing successful" $$ summary_message
     else case upon_failure of
         AbortCompilation -> do
-            errorMsg $ text "inspection testing unsuccessful" $$ error_mesage
+            errorMsg $ text "inspection testing unsuccessful" $$ summary_message
             liftIO $ exitFailure -- kill the compiler. Is there a nicer way?
         KeepGoing -> do
-            warnMsg $ text "inspection testing unsuccessful" $$ error_mesage
+            warnMsg $ text "inspection testing unsuccessful" $$ summary_message
 
     return guts'
 

@@ -34,7 +34,8 @@ If you compile this, you will reassurringly read:
 $ ghc Simple.hs
 [1 of 1] Compiling Simple           ( Simple.hs, Simple.o )
 examples/Simple.hs:14:1: lhs === rhs passed.
-Test.Inspection tested 1 obligation.
+inspection testing successful
+      expected successes: 1
 ```
 
 See the [`examples/`](examples/) directory for more examples of working proofs.

@@ -1,5 +1,9 @@
 # Revision history for inspection-testing
 
+## 0.1.1.2 -- 2017-11-12
+
+* Hotfix: Do not abort if there are expected failures
+
 ## 0.1.1.1 -- 2017-11-12
 
 * Show summary stats
