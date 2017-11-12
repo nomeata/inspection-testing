@@ -8,8 +8,8 @@ import Control.Monad
 import System.Exit
 import Data.Either
 import Data.Maybe
-import Data.List
-import Data.Bifunctor
+import Data.Foldable
+import qualified Data.Map.Strict as M
 import qualified Language.Haskell.TH.Syntax as TH
 
 import GhcPlugins hiding (SrcLoc)
@@ -54,11 +54,11 @@ findObligationAnn (Annotation (ModuleTarget _) payload)
 findObligationAnn _
     = Nothing
 
-prettyObligation :: Module -> Obligation -> String
-prettyObligation mod (Obligation {..}) =
+prettyObligation :: Module -> Obligation -> String -> String
+prettyObligation mod (Obligation {..}) result =
     maybe "" myPrettySrcLoc srcLoc ++ ": " ++
-    "inspecting " ++ prettyProperty mod target property ++
-    (if expectFail then " (failure expected)" else "")
+    prettyProperty mod target property ++
+    " " ++ result
 
 prettyProperty :: Module -> TH.Name -> Property -> String
 prettyProperty mod target (EqualTo n2 False)  = showTHName mod target ++ " === " ++ showTHName mod n2
@@ -74,26 +74,40 @@ showTHName mod (TH.Name occ (TH.NameG _ _ m))
     | moduleNameString (moduleName mod) == TH.modString m = TH.occString occ
 showTHName _ n = show n
 
-checkObligation :: ModGuts -> Obligation -> CoreM Bool
+data Stat = ExpSuccess | ExpFailure | UnexpSuccess | UnexpFailure
+    deriving (Enum, Eq, Ord, Bounded)
+type Stats = M.Map Stat Int
+
+tick :: Stat -> Stats
+tick s = M.singleton s 1
+
+checkObligation :: ModGuts -> Obligation -> CoreM Stats
 checkObligation guts obl = do
-    putMsgS $ prettyObligation (mg_module guts) obl
 
     res <- checkProperty guts (target obl) (property obl)
 
     case (res, expectFail obl) of
         -- Property holds
         (Nothing, False) -> do
-            return True
+            putMsgS $ prettyObligation (mg_module guts) obl expSuccess
+            return (tick ExpSuccess)
         (Nothing, True) -> do
-            putMsgS "Obligation passes unexpectedly"
-            return False
+            putMsgS $ prettyObligation (mg_module guts) obl unexpSuccess
+            return (tick UnexpSuccess)
         -- Property does not hold
         (Just reportMsg, False) -> do
-            putMsgS "Obligation fails"
+            putMsgS $ prettyObligation (mg_module guts) obl unexpFailure
             reportMsg
-            return False
+            return (tick UnexpFailure)
         (Just _, True) -> do
-            return True
+            putMsgS $ prettyObligation (mg_module guts) obl expFailure
+            return (tick ExpFailure)
+  where
+    expSuccess   = "passed."
+    unexpSuccess = "passed unexpectedly!"
+    unexpFailure = "failed:"
+    expFailure   = "failed expectedly."
+
 
 type Result =  Maybe (CoreM ())
 
@@ -166,22 +180,32 @@ proofPass upon_failure guts = do
         warnMsg $ fsep $ map text $ words "Test.Inspection: Compilation without -O detected. Expect optimizations to fail."
 
     let (guts', obligations) = extractObligations guts
-    ok <- and <$> mapM (checkObligation guts') obligations
-    if ok
-      then do
-        let (_m,n) = bimap length length $ partition expectFail obligations
-        putMsg $ text "Test.Inspection tested" <+> ppr n <+>
-                 text "obligation" <> (if n == 1 then empty else text "s")
-      else do
-        case upon_failure of
-            AbortCompilation -> do
-                errorMsg $ text "inspection testing unsuccessful"
-                liftIO $ exitFailure -- kill the compiler. Is there a nicer way?
-            KeepGoing -> do
-                warnMsg $ text "inspection testing unsuccessful"
+    stats <- M.unionsWith (+) <$> mapM (checkObligation guts') obligations
+    let n = sum stats :: Int
+
+    let error_mesage = nest 2 $
+            vcat [ nest 2 (desc s) <> colon <+> ppr n
+                 | s <- [minBound..maxBound]
+                 , Just n <- return $ M.lookup s stats]
+
+    if M.lookup ExpSuccess stats == Just n
+    then putMsg $ text "Test.Inspection tested" <+> ppr n <+>
+                  text "obligation" <> (if n == 1 then empty else text "s") <> dot
+    else case upon_failure of
+        AbortCompilation -> do
+            errorMsg $ text "inspection testing unsuccessful" $$ error_mesage
+            liftIO $ exitFailure -- kill the compiler. Is there a nicer way?
+        KeepGoing -> do
+            warnMsg $ text "inspection testing unsuccessful" $$ error_mesage
+
     return guts'
 
 
+desc :: Stat -> SDoc
+desc ExpSuccess   = text "  expected successes"
+desc UnexpSuccess = text "unexpected successes"
+desc ExpFailure   = text "   expected failures"
+desc UnexpFailure = text " unexpected failures"
 
 partitionMaybe :: (a -> Maybe b) -> [a] -> ([a], [b])
 partitionMaybe f = partitionEithers . map (\x -> maybe (Left x) Right (f x))
