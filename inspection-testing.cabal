@@ -105,7 +105,7 @@ test-suite generic-lens
   if flag(more-tests)
     build-depends:       inspection-testing
     build-depends:       base >=4.9 && <4.12
-    build-depends:       generic-lens ==0.4.0.1
+    build-depends:       generic-lens ==0.4.1.0
   else
     buildable:         False
   default-language:    Haskell2010
