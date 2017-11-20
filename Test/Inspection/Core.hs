@@ -1,6 +1,6 @@
 -- | This module implements some of analyses of Core expressions necessary for
 -- "Test.Inspection". Normally, users of this pacakge can ignore this module. 
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, FlexibleContexts #-}
 module Test.Inspection.Core
   ( slice
   , pprSlice
@@ -18,16 +18,15 @@ import Var
 import Id
 import Name
 import VarEnv
-import Literal (nullAddrLit)
 import Outputable
 import PprCore
 import Coercion
 import Util
 
 import qualified Data.Set as S
+import Control.Monad.State.Strict
+import Control.Monad.Trans.Maybe
 import Data.Maybe
-import State
-import Control.Monad
 
 type Slice = [(Var, CoreExpr)]
 
@@ -48,7 +47,7 @@ slice binds v = [(v,e) | (v,e) <- binds, v `S.member` used ]
 
     go (Var v)                     = goV v
     go (Lit _ )                    = pure ()
-    go (App e arg) | isTypeArg arg = go e
+    go (App e arg) | isTyCoArg arg = go e
     go (App e arg)                 = go e >> go arg
     go (Lam b e) | isTyVar b       = go e
     go (Lam _ e)                   = go e
@@ -83,47 +82,88 @@ withLessDetail sdoc = sdocWithDynFlags $ \dflags ->
 withLessDetail sdoc = withPprStyle defaultUserStyle sdoc
 #endif
 
+type VarPair = (Var, Var)
+type VarPairSet = S.Set VarPair
+
 -- | This is a heuristic, which only works if both slices
 -- have auxillary variables in the right order.
 -- (This is mostly to work-around the buggy CSE in GHC-8.0)
 -- It also breaks if there is shadowing.
 eqSlice :: Bool {- ^ ignore types -} -> Slice -> Slice -> Bool
--- Compares for equality, modulo alpha
+eqSlice _ slice1 slice2 | null slice1 || null slice2 = null slice1 == null slice2
+  -- Mostly defensive programming (slices should not be empty)
 eqSlice it slice1 slice2
-  = go (mkRnEnv2 emptyInScopeSet)
-       (Let (Rec slice1) (Lit nullAddrLit))
-       (Let (Rec slice2) (Lit nullAddrLit))
-         -- this is a slight hack, for now
+  = step (S.singleton (fst (last slice1), fst (last slice2))) S.empty
   where
-    go env (Var v1) (Var v2)
-      | rnOccL env v1 == rnOccR env v2
-      = True
-    go _   (Lit lit1)    (Lit lit2)        = lit1 == lit2
-    go env (Type t1)     (Type t2)         = eqTypeX env t1 t2
-    go env (Coercion co1) (Coercion co2)   = eqCoercionX env co1 co2
+    step :: VarPairSet -> VarPairSet -> Bool
+    step wanted done
+        | wanted `S.isSubsetOf` done
+        = True -- done
+        | (x,y) : _ <- S.toList (wanted `S.difference` done)
+        , (Just _, wanted') <- runState (runMaybeT (equate x y)) wanted
+        = step wanted' (S.insert (x,y) done)
+        | otherwise
+        = False
+
+
+    equate :: Var -> Var -> MaybeT (State VarPairSet) ()
+    equate x y
+        | it
+        , Just e1 <- lookup x slice1
+        , Just x' <- essentiallyVar e1
+        = equated x' y
+        | it
+        , Just e2 <- lookup y slice2
+        , Just y' <- essentiallyVar e2
+        = equated x y'
+        | Just e1 <- lookup x slice1
+        , Just e2 <- lookup y slice2
+        = go (mkRnEnv2 emptyInScopeSet) e1 e2
+    equate _ _ = mzero
+
+    equated :: Var -> Var -> MaybeT (State VarPairSet) ()
+    equated x y | x == y = return ()
+    equated x y = lift $ modify (S.insert (x,y))
+
+    essentiallyVar :: CoreExpr -> Maybe Var
+    essentiallyVar (App e a) | isTyCoArg a = essentiallyVar e
+    essentiallyVar (Lam v e) | isTyCoVar v = essentiallyVar e
+    essentiallyVar (Cast e _)              = essentiallyVar e
+    essentiallyVar (Var v)                 = Just v
+    essentiallyVar _                       = Nothing
+
+    go :: RnEnv2 -> CoreExpr -> CoreExpr -> MaybeT (State (S.Set (Var,Var))) ()
+    go env (Var v1) (Var v2) | rnOccL env v1 == rnOccR env v2 = pure ()
+                             | otherwise = equated v1 v2
+    go _   (Lit lit1)    (Lit lit2)        = guard $ lit1 == lit2
+    go env (Type t1)     (Type t2)         = guard $ eqTypeX env t1 t2
+    go env (Coercion co1) (Coercion co2)   = guard $ eqCoercionX env co1 co2
 
     go env (Cast e1 _) e2 | it             = go env e1 e2
     go env e1 (Cast e2 _) | it             = go env e1 e2
-    go env (Cast e1 co1) (Cast e2 co2)     = eqCoercionX env co1 co2 && go env e1 e2
+    go env (Cast e1 co1) (Cast e2 co2)     = do guard (eqCoercionX env co1 co2)
+                                                go env e1 e2
 
-    go env (App e1 a) e2 | it, isTypeArg a = go env e1 e2
-    go env e1 (App e2 a) | it, isTypeArg a = go env e1 e2
-    go env (App f1 a1)   (App f2 a2)       = go env f1 f2 && go env a1 a2
-    go env (Tick n1 e1)  (Tick n2 e2)      = go_tick env n1 n2 && go env e1 e2
+    go env (App e1 a) e2 | it, isTyCoArg a = go env e1 e2
+    go env e1 (App e2 a) | it, isTyCoArg a = go env e1 e2
+    go env (App f1 a1)   (App f2 a2)       = go env f1 f2 >> go env a1 a2
+    go env (Tick n1 e1)  (Tick n2 e2)      = guard (go_tick env n1 n2) >> go env e1 e2
 
     go env (Lam b e1) e2 | it, isTyCoVar b = go env e1 e2
     go env e1 (Lam b e2) | it, isTyCoVar b = go env e1 e2
     go env (Lam b1 e1)  (Lam b2 e2)
-      =  (it || eqTypeX env (varType b1) (varType b2))  -- False for Id/TyVar combination
-      && go (rnBndr2 env b1 b2) e1 e2
+      = do guard (it || eqTypeX env (varType b1) (varType b2))
+                -- False for Id/TyVar combination
+           go (rnBndr2 env b1 b2) e1 e2
 
     go env (Let (NonRec v1 r1) e1) (Let (NonRec v2 r2) e2)
-      =  go env r1 r2  -- No need to check binder types, since RHSs match
-      && go (rnBndr2 env v1 v2) e1 e2
+      = do go env r1 r2  -- No need to check binder types, since RHSs match
+           go (rnBndr2 env v1 v2) e1 e2
 
     go env (Let (Rec ps1) e1) (Let (Rec ps2) e2)
-      = equalLength ps1 ps2
-      && all2 (go env') rs1 rs2 && go env' e1 e2
+      = do guard $ equalLength ps1 ps2
+           sequence_ $ zipWith (go env') rs1 rs2
+           go env' e1 e2
       where
         (bs1,rs1) = unzip ps1
         (bs2,rs2) = unzip ps2
@@ -131,15 +171,19 @@ eqSlice it slice1 slice2
 
     go env (Case e1 b1 t1 a1) (Case e2 b2 t2 a2)
       | null a1   -- See Note [Empty case alternatives] in TrieMap
-      = null a2 && go env e1 e2 && (it || eqTypeX env t1 t2)
+      = do guard (null a2)
+           go env e1 e2
+           guard (it || eqTypeX env t1 t2)
       | otherwise
-      =  go env e1 e2 && all2 (go_alt (rnBndr2 env b1 b2)) a1 a2
+      = do guard $ equalLength a1 a2
+           go env e1 e2
+           sequence_ $ zipWith (go_alt (rnBndr2 env b1 b2)) a1 a2
 
-    go _ _ _ = False
+    go _ _ _ = guard False
 
     -----------
     go_alt env (c1, bs1, e1) (c2, bs2, e2)
-      = c1 == c2 && go (rnBndrs2 env bs1 bs2) e1 e2
+      = guard (c1 == c2) >> go (rnBndrs2 env bs1 bs2) e1 e2
 
     go_tick :: RnEnv2 -> Tickish Id -> Tickish Id -> Bool
     go_tick env (Breakpoint lid lids) (Breakpoint rid rids)

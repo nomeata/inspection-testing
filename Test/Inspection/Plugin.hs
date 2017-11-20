@@ -1,4 +1,5 @@
 -- | See "Test.Inspection".
+--
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE MultiWayIf #-}

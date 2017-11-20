@@ -1,5 +1,10 @@
 # Revision history for inspection-testing
 
+## 0.1.2 -- 2017-11-20
+
+* Make `(==-)` a bit more liberal, and look through variable redefinitions that
+  only change the type
+
 ## 0.1.1.2 -- 2017-11-12
 
 * Hotfix: Do not abort if there are expected failures

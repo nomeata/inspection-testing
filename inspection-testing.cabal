@@ -1,5 +1,5 @@
 name:                inspection-testing
-version:             0.1.1.2
+version:             0.1.2
 synopsis:            GHC plugin to do inspection testing
 description:         Some carefully crafted libraries make promises to their
                      users beyond functionality and performance.
@@ -49,6 +49,8 @@ library
   build-depends:       ghc >= 8.0.2 && <8.4
   build-depends:       template-haskell
   build-depends:       containers
+  build-depends:       transformers
+  build-depends:       mtl
   default-language:    Haskell2010
   ghc-options:         -Wall -Wno-name-shadowing
 
