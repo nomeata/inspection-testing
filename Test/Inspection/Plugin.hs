@@ -158,7 +158,7 @@ checkProperty guts thn (NoType tht) = do
         Nothing -> pure . Just $ do
             putMsg $ ppr n <+> text "is not a local name"
         Just (v, _) -> case freeOfType (slice binds v) t of
-            Just (v',e') -> pure . Just $ putMsg $ nest 4 (ppr v' <+> text "=" <+> ppr e')
+            Just _ -> pure . Just $ putMsg $ pprSlice (slice binds v)
             Nothing -> pure Nothing
   where binds = flattenBinds (mg_binds guts)
 
