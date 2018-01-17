@@ -6,13 +6,21 @@
 -- Portability : GHC specifc
 --
 {-# LANGUAGE DeriveDataTypeable #-}
-module Test.Inspection.Internal (KeepAlive(..)) where
+module Test.Inspection.Internal
+    ( KeepAlive(..)
+    , FindAgain(..)
+    ) where
 
 import Data.Data
 
 -- | An annotation to keep names alive
 data KeepAlive = KeepAlive
     deriving Data
+
+-- | An annotation to find things again
+data FindAgain = FindAgain String
+    deriving Data
+
 
 {-
 keep_alive :: a

@@ -17,6 +17,8 @@ module Test.Inspection (
 
     -- * Registering obligations
     inspect,
+    inspectTest,
+    Result(..),
     -- * Defining obligations
     Obligation(..), mkObligation, Property(..),
     (===), (==-), (=/=), hasNoType,
@@ -26,6 +28,7 @@ import Control.Monad
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax (getQ, putQ, liftData)
 import Data.Data
+import GHC.Exts (lazy)
 
 import Data.Maybe (fromMaybe)
 import qualified Data.Set as S
@@ -38,7 +41,7 @@ To use inspection testing, you need to
 
  1. enable the @TemplateHaskell@ langauge extension
  2. load the plugin using @-fplugin Test.Inspection.Plugin@
- 3. declare your proof obligations using 'inspect'
+ 3. declare your proof obligations using 'inspect' or 'inspectTest'
 
 An example module is
 
@@ -79,9 +82,13 @@ data Obligation = Obligation
         -- ^ An optional name for the test
     , expectFail  :: Bool
         -- ^ Do we expect this property to fail?
+        -- (Only used by 'inspect', not by 'inspectTest')
     , srcLoc :: Maybe Loc
         -- ^ The source location where this obligation is defined.
         -- This is filled in by 'inspect'.
+    , storeResult :: Maybe String
+        -- ^ If this is 'Nothing', then report errors during compilation.
+        -- Otherwise, update the top-level definition with this name.
     }
     deriving Data
 
@@ -120,6 +127,7 @@ mkObligation target prop = Obligation
     , testName = Nothing
     , srcLoc = Nothing
     , expectFail = False
+    , storeResult = Nothing
     }
 
 -- | Convenience function to declare two functions to be equal
@@ -155,12 +163,43 @@ hasNoType n tn = mkObligation n (NoType tn)
 
 -- | As seen in the example above, the entry point to inspection testing is the
 -- 'inspect' function, to which you pass an 'Obligation'.
+-- It will report test failures at compile time.
 inspect :: Obligation -> Q [Dec]
 inspect obl = do
     loc <- location
     annExpr <- liftData (obl { srcLoc = Just loc })
     rememberDs <- concat <$> mapM rememberName (allLocalNames obl)
     pure $ PragmaD (AnnP ModuleAnnotation annExpr) : rememberDs
+
+-- | The result of 'inspectTest', which a more or less helpful text message
+data Result = Failure String | Success String
+    deriving Show
+
+didNotRunPluginError :: Result
+didNotRunPluginError = lazy (error "Test.Inspection.Plugin did not run")
+{-# NOINLINE didNotRunPluginError #-}
+
+
+-- | This is a variant that allows compilation to succeed in any case,
+-- and stores the restult in a top-level value with the given name and type
+-- 'Result', which allows seamless integration into test frameworks.
+--
+-- This variant ignores the 'expectFail' field of the obligation. Instead,
+-- it is expected that you use the corresponding functionality in your test
+-- framework (e.g. tasty-expected-failure)
+inspectTest :: String -> Obligation -> Q [Dec]
+inspectTest nameS obl = do
+    -- We use an extra indirection because caputable names (mkName) do not
+    -- transfer nicely into the Core world with thNameToGhcName
+    let name = mkName nameS
+    anns <- inspect (obl { storeResult = Just nameS} )
+    fa_expr <- [| FindAgain $(stringE nameS) |]
+    pure $
+        [ SigD name (ConT ''Result)
+        , ValD (VarP name) (NormalB (VarE 'didNotRunPluginError)) []
+        , PragmaD (InlineP name NoInline FunLike AllPhases)
+        , PragmaD (AnnP (ValueAnnotation name) fa_expr)
+        ] ++ anns
 
 -- We need to ensure that names refernced in obligations are kept alive
 -- We do so by annotating them with 'KeepAlive'
