@@ -73,6 +73,14 @@ test-suite simple
   default-language:    Haskell2010
   ghc-options:         -main-is Simple
 
+test-suite simple-test
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      examples
+  main-is:             SimpleTest.hs
+  build-depends:       inspection-testing
+  build-depends:       base >=4.9 && <4.12
+  default-language:    Haskell2010
+
 test-suite fusion
   type:                exitcode-stdio-1.0
   hs-source-dirs:      examples

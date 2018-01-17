@@ -4,6 +4,7 @@ module Main where
 
 import Test.Inspection
 import Data.Maybe
+import System.Exit
 
 lhs, rhs, something_else :: (a -> b) -> Maybe a -> Bool
 
@@ -18,8 +19,19 @@ printResult :: Result -> IO ()
 printResult (Success s) = putStrLn s
 printResult (Failure s) = putStrLn s
 
-main :: IO ()
-main = mapM_ printResult
+isSuccess :: Result -> Bool
+isSuccess (Success _) = True
+isSuccess (Failure _) = False
+
+results :: [Result]
+results =
     [ $(inspectTest $ 'lhs === 'rhs)
     , $(inspectTest $ 'lhs === 'something_else)
     ]
+
+main :: IO ()
+main = do
+    mapM_ printResult results
+    if map isSuccess results == [True, False]
+    then exitSuccess
+    else exitFailure
