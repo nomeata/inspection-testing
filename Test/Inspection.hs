@@ -26,7 +26,7 @@ module Test.Inspection (
 
 import Control.Monad
 import Language.Haskell.TH
-import Language.Haskell.TH.Syntax (getQ, putQ, liftData)
+import Language.Haskell.TH.Syntax (getQ, putQ, liftData, addTopDecls)
 import Data.Data
 import GHC.Exts (lazy)
 
@@ -181,25 +181,29 @@ didNotRunPluginError = lazy (error "Test.Inspection.Plugin did not run")
 
 
 -- | This is a variant that allows compilation to succeed in any case,
--- and stores the restult in a top-level value with the given name and type
--- 'Result', which allows seamless integration into test frameworks.
+-- and instead indicates the result as a value of type 'Result',
+-- which allows seamless integration into test frameworks.
 --
 -- This variant ignores the 'expectFail' field of the obligation. Instead,
 -- it is expected that you use the corresponding functionality in your test
 -- framework (e.g. tasty-expected-failure)
-inspectTest :: String -> Obligation -> Q [Dec]
-inspectTest nameS obl = do
-    -- We use an extra indirection because caputable names (mkName) do not
-    -- transfer nicely into the Core world with thNameToGhcName
-    let name = mkName nameS
+inspectTest :: Obligation -> Q Exp
+inspectTest obl = do
+    nameS <- genName
+    name <- newName nameS
     anns <- inspect (obl { storeResult = Just nameS} )
     fa_expr <- [| FindAgain $(stringE nameS) |]
-    pure $
+    addTopDecls $
         [ SigD name (ConT ''Result)
         , ValD (VarP name) (NormalB (VarE 'didNotRunPluginError)) []
         , PragmaD (InlineP name NoInline FunLike AllPhases)
         , PragmaD (AnnP (ValueAnnotation name) fa_expr)
         ] ++ anns
+    return $ VarE name
+  where
+    genName = do
+        (r,c) <- loc_start <$> location
+        return $ "inspect_" ++ show r ++ "_" ++ show c
 
 -- We need to ensure that names refernced in obligations are kept alive
 -- We do so by annotating them with 'KeepAlive'
