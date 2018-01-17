@@ -161,15 +161,18 @@ hasNoType n tn = mkObligation n (NoType tn)
 
 -- The exported TH functions
 
+inspectCommon :: AnnTarget -> Obligation -> Q [Dec]
+inspectCommon annTarget obl = do
+    loc <- location
+    annExpr <- liftData (obl { srcLoc = Just loc })
+    rememberDs <- concat <$> mapM rememberName (allLocalNames obl)
+    pure $ PragmaD (AnnP annTarget annExpr) : rememberDs
+
 -- | As seen in the example above, the entry point to inspection testing is the
 -- 'inspect' function, to which you pass an 'Obligation'.
 -- It will report test failures at compile time.
 inspect :: Obligation -> Q [Dec]
-inspect obl = do
-    loc <- location
-    annExpr <- liftData (obl { srcLoc = Just loc })
-    rememberDs <- concat <$> mapM rememberName (allLocalNames obl)
-    pure $ PragmaD (AnnP ModuleAnnotation annExpr) : rememberDs
+inspect = inspectCommon ModuleAnnotation
 
 -- | The result of 'inspectTest', which a more or less helpful text message
 data Result = Failure String | Success String
@@ -178,7 +181,6 @@ data Result = Failure String | Success String
 didNotRunPluginError :: Result
 didNotRunPluginError = lazy (error "Test.Inspection.Plugin did not run")
 {-# NOINLINE didNotRunPluginError #-}
-
 
 -- | This is a variant that allows compilation to succeed in any case,
 -- and instead indicates the result as a value of type 'Result',
@@ -191,13 +193,11 @@ inspectTest :: Obligation -> Q Exp
 inspectTest obl = do
     nameS <- genName
     name <- newName nameS
-    anns <- inspect (obl { storeResult = Just nameS} )
-    fa_expr <- [| FindAgain $(stringE nameS) |]
+    anns <- inspectCommon (ValueAnnotation name) obl
     addTopDecls $
         [ SigD name (ConT ''Result)
         , ValD (VarP name) (NormalB (VarE 'didNotRunPluginError)) []
         , PragmaD (InlineP name NoInline FunLike AllPhases)
-        , PragmaD (AnnP (ValueAnnotation name) fa_expr)
         ] ++ anns
     return $ VarE name
   where

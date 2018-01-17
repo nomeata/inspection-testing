@@ -16,7 +16,7 @@ import qualified Language.Haskell.TH.Syntax as TH
 
 import GhcPlugins hiding (SrcLoc)
 
-import Test.Inspection.Internal (KeepAlive(..), FindAgain(..))
+import Test.Inspection.Internal (KeepAlive(..))
 import Test.Inspection (Obligation(..), Property(..), Result(..))
 import Test.Inspection.Core
 
@@ -27,6 +27,8 @@ plugin = defaultPlugin { installCoreToDos = install }
 
 data UponFailure = AbortCompilation | KeepGoing deriving Eq
 
+data ResultTarget = PrintAndAbort | StoreAt Name
+
 install :: [CommandLineOption] -> [CoreToDo] -> CoreM [CoreToDo]
 install args passes = return $ passes ++ [pass]
   where
@@ -35,16 +37,12 @@ install args passes = return $ passes ++ [pass]
                  | otherwise                = AbortCompilation
 
 
-extractObligations :: ModGuts -> (ModGuts, [Obligation], [(String, Name)])
-extractObligations guts =
-    (guts { mg_rules = rules', mg_anns = anns_clean },
-    obligations,
-    findAgains)
+extractObligations :: ModGuts -> (ModGuts, [(ResultTarget, Obligation)])
+extractObligations guts = (guts', obligations)
   where
-    rules' = mg_rules guts
     (anns', obligations) = partitionMaybe findObligationAnn (mg_anns guts)
-    (anns'', findAgains) = partitionMaybe findFindAgainAnn  anns'
-    anns_clean = filter (not . isKeepAliveAnn) anns''
+    anns_clean = filter (not . isKeepAliveAnn) anns'
+    guts' = guts { mg_anns = anns_clean }
 
 isKeepAliveAnn :: Annotation -> Bool
 isKeepAliveAnn (Annotation (NamedTarget _) payload)
@@ -53,18 +51,14 @@ isKeepAliveAnn (Annotation (NamedTarget _) payload)
 isKeepAliveAnn _
     = False
 
-findObligationAnn :: Annotation -> Maybe Obligation
+findObligationAnn :: Annotation -> Maybe (ResultTarget, Obligation)
 findObligationAnn (Annotation (ModuleTarget _) payload)
     | Just obl <- fromSerialized deserializeWithData payload
-    = Just obl
+    = Just (PrintAndAbort, obl)
+findObligationAnn (Annotation (NamedTarget n) payload)
+    | Just obl <- fromSerialized deserializeWithData payload
+    = Just (StoreAt n, obl)
 findObligationAnn _
-    = Nothing
-
-findFindAgainAnn :: Annotation -> Maybe (String, Name)
-findFindAgainAnn (Annotation (NamedTarget n) payload)
-    | Just (FindAgain s) <- fromSerialized deserializeWithData payload
-    = Just (s,n)
-findFindAgainAnn _
     = Nothing
 
 prettyObligation :: Module -> Obligation -> String -> String
@@ -91,17 +85,17 @@ data Stat = ExpSuccess | ExpFailure | UnexpSuccess | UnexpFailure | StoredResult
     deriving (Enum, Eq, Ord, Bounded)
 type Stats = M.Map Stat Int
 
-type Updates = [(String, Result)]
+type Updates = [(Name, Result)]
 
 tick :: Stat -> Stats
 tick s = M.singleton s 1
 
-checkObligation :: ModGuts -> Obligation -> CoreM (Updates, Stats)
-checkObligation guts obl = do
+checkObligation :: ModGuts -> (ResultTarget, Obligation) -> CoreM (Updates, Stats)
+checkObligation guts (reportTarget, obl) = do
 
     res <- checkProperty guts (target obl) (property obl)
-    case storeResult obl of
-        Nothing -> do
+    case reportTarget of
+        PrintAndAbort -> do
             category <- case (res, expectFail obl) of
                 -- Property holds
                 (Nothing, False) -> do
@@ -119,7 +113,7 @@ checkObligation guts obl = do
                     putMsgS $ prettyObligation (mg_module guts) obl expFailure
                     return ExpFailure
             return ([], tick category)
-        Just name -> do
+        StoreAt name -> do
             dflags <- getDynFlags
             let result = case res of
                     Nothing -> Success $ showSDoc dflags $
@@ -204,14 +198,13 @@ checkProperty guts thn NoAllocation = do
             Nothing -> pure Nothing
   where binds = flattenBinds (mg_binds guts)
 
-storeResults :: [(String, Name)] -> Updates -> ModGuts -> CoreM ModGuts
-storeResults findAgains = flip (foldM (flip (uncurry go)))
+storeResults :: Updates -> ModGuts -> CoreM ModGuts
+storeResults = flip (foldM (flip (uncurry go)))
   where
-    go :: String -> Result -> ModGuts -> CoreM ModGuts
-    go nameS res guts = do
-        Just n <- pure $ lookup nameS findAgains
+    go :: Name -> Result -> ModGuts -> CoreM ModGuts
+    go name res guts = do
         e <- resultToExpr res
-        pure $ updateNameInGuts n e guts
+        pure $ updateNameInGuts name e guts
 
 dcExpr :: TH.Name -> CoreM CoreExpr
 dcExpr thn = do
@@ -229,12 +222,12 @@ proofPass upon_failure guts = do
     when (optLevel dflags < 1) $
         warnMsg $ fsep $ map text $ words "Test.Inspection: Compilation without -O detected. Expect optimizations to fail."
 
-    let (guts', obligations, findAgains) = extractObligations guts
+    let (guts', obligations) = extractObligations guts
     (toStore, stats) <- (concat `bimap` M.unionsWith (+)) . unzip <$>
         mapM (checkObligation guts') obligations
     let n = sum stats :: Int
 
-    guts'' <- storeResults findAgains toStore  guts'
+    guts'' <- storeResults toStore  guts'
 
     let q :: Stat -> Int
         q s = fromMaybe 0 $ M.lookup s stats
