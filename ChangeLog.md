@@ -1,5 +1,10 @@
 # Revision history for inspection-testing
 
+## 0.2 -- 2018-01-17
+
+* With `$(inspectTest obligation)` you can now get the result of inspection
+  testing at run-time, for integration into your test suite.
+
 ## 0.1.2 -- 2017-11-20
 
 * Make `(==-)` a bit more liberal, and look through variable redefinitions that
