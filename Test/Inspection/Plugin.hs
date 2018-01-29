@@ -15,6 +15,7 @@ import qualified Data.Map.Strict as M
 import qualified Language.Haskell.TH.Syntax as TH
 
 import GhcPlugins hiding (SrcLoc)
+import Outputable
 
 import Test.Inspection.Internal (KeepAlive(..))
 import Test.Inspection (Obligation(..), Property(..), Result(..))
@@ -233,7 +234,7 @@ proofPass upon_failure guts = do
         q s = fromMaybe 0 $ M.lookup s stats
 
     let summary_message = nest 2 $
-            vcat [ nest 2 (desc s) <> colon <+> ppr (q s)
+            vcat [ nest 2 (desc s) Outputable.<> colon <+> ppr (q s)
                  | s <- [minBound..maxBound], q s > 0 ]
 
     -- Only print a message if there are some compile-time results to report
