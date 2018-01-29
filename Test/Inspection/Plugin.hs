@@ -177,6 +177,10 @@ checkProperty guts thn1 (EqualTo thn2 ignore_types) = do
        , Nothing <- p2
        -> pure . Just $ ppr n1 <+> text " and " <+> ppr n2 <+>
                 text "are different external names"
+       | Nothing <- p1
+       -> pure . Just $ ppr n1 <+> text "is an external names"
+       | Nothing <- p2
+       -> pure . Just $ ppr n2 <+> text "is an external names"
   where
     binds = flattenBinds (mg_binds guts)
 
