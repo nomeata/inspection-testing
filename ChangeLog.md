@@ -1,5 +1,9 @@
 # Revision history for inspection-testing
 
+## 0.2.0.1 -- 2018-02-02
+
+* Support GHC HEAD (8.5)
+
 ## 0.2 -- 2018-01-17
 
 * With `$(inspectTest obligation)` you can now get the result of inspection
