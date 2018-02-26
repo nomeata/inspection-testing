@@ -24,16 +24,10 @@ module Test.Inspection (
     (===), (==-), (=/=), hasNoType,
 ) where
 
-import Control.Monad
 import Language.Haskell.TH
-import Language.Haskell.TH.Syntax (getQ, putQ, liftData, addTopDecls)
+import Language.Haskell.TH.Syntax (liftData, addTopDecls)
 import Data.Data
 import GHC.Exts (lazy)
-
-import Data.Maybe (fromMaybe)
-import qualified Data.Set as S
-
-import Test.Inspection.Internal
 
 {- $synposis
 
@@ -111,13 +105,6 @@ data Property
     | NoAllocation
     deriving Data
 
-allLocalNames :: Obligation -> [Name]
-allLocalNames obl = target obl : goProp (property obl)
-  where
-    goProp :: Property -> [Name]
-    goProp (EqualTo n _) = [n]
-    goProp _ = []
-
 -- | Creates an inspection obligation for the given function name
 -- with default values for the optional fields.
 mkObligation :: Name -> Property -> Obligation
@@ -165,8 +152,7 @@ inspectCommon :: AnnTarget -> Obligation -> Q [Dec]
 inspectCommon annTarget obl = do
     loc <- location
     annExpr <- liftData (obl { srcLoc = Just loc })
-    rememberDs <- concat <$> mapM rememberName (allLocalNames obl)
-    pure $ PragmaD (AnnP annTarget annExpr) : rememberDs
+    pure [PragmaD (AnnP annTarget annExpr)]
 
 -- | As seen in the example above, the entry point to inspection testing is the
 -- 'inspect' function, to which you pass an 'Obligation'.
@@ -204,23 +190,3 @@ inspectTest obl = do
     genName = do
         (r,c) <- loc_start <$> location
         return $ "inspect_" ++ show r ++ "_" ++ show c
-
--- We need to ensure that names refernced in obligations are kept alive
--- We do so by annotating them with 'KeepAlive'
-
-newtype SeenNames = SeenNames (S.Set Name)
-
--- Annotate each name only once
-nameSeen :: Name -> Q Bool
-nameSeen n = do
-    SeenNames s <- fromMaybe (SeenNames S.empty) <$> getQ
-    let seen = n `S.member` s
-    unless seen $ putQ $ SeenNames (S.insert n s)
-    pure seen
-
-rememberName :: Name -> Q [Dec]
-rememberName n = do
-    seen <- nameSeen n
-    if seen then return [] else do
-        kaExpr <- liftData KeepAlive
-        pure [ PragmaD (AnnP (ValueAnnotation n) kaExpr) ]

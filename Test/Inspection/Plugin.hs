@@ -17,7 +17,6 @@ import qualified Language.Haskell.TH.Syntax as TH
 import GhcPlugins hiding (SrcLoc)
 import Outputable
 
-import Test.Inspection.Internal (KeepAlive(..))
 import Test.Inspection (Obligation(..), Property(..), Result(..))
 import Test.Inspection.Core
 
@@ -41,16 +40,8 @@ install args passes = return $ passes ++ [pass]
 extractObligations :: ModGuts -> (ModGuts, [(ResultTarget, Obligation)])
 extractObligations guts = (guts', obligations)
   where
-    (anns', obligations) = partitionMaybe findObligationAnn (mg_anns guts)
-    anns_clean = filter (not . isKeepAliveAnn) anns'
+    (anns_clean, obligations) = partitionMaybe findObligationAnn (mg_anns guts)
     guts' = guts { mg_anns = anns_clean }
-
-isKeepAliveAnn :: Annotation -> Bool
-isKeepAliveAnn (Annotation (NamedTarget _) payload)
-    | Just KeepAlive <- fromSerialized deserializeWithData payload
-    = True
-isKeepAliveAnn _
-    = False
 
 findObligationAnn :: Annotation -> Maybe (ResultTarget, Obligation)
 findObligationAnn (Annotation (ModuleTarget _) payload)

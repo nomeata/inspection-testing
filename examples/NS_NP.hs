@@ -2,7 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# OPTIONS_GHC -O #-}
 {-# OPTIONS_GHC -fplugin Test.Inspection.Plugin #-}
-module NS_NP where
+module NS_NP (main) where
 
 import Test.Inspection
 

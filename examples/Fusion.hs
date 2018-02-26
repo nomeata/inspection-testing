@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# OPTIONS_GHC -fplugin Test.Inspection.Plugin #-}
-module Fusion where
+module Fusion (main) where
 
 import Test.Inspection
 import Data.List (foldl', sort)

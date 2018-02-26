@@ -1,5 +1,10 @@
 # Revision history for inspection-testing
 
+## 0.2.0.2 -- UNRELEASED
+
+* No need to keep referenced variables alive using annotations:
+  Simply mentioning them in a Template Haskell splice keeps them alive!
+
 ## 0.2.0.1 -- 2018-02-02
 
 * Support GHC HEAD (8.5)

@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# OPTIONS_GHC -O -fplugin Test.Inspection.Plugin #-}
-module Simple where
+module Simple (main) where
 
 import Test.Inspection
 import Data.Maybe
