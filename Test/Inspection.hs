@@ -40,7 +40,7 @@ To use inspection testing, you need to
 An example module is
 
 @
-{&#45;\# LANGAUGE TemplateHaskell \#&#45;}
+{&#45;\# LANGUAGE TemplateHaskell \#&#45;}
 {&#45;\# OPTIONS_GHC -O -fplugin Test.Inspection.Plugin \#&#45;}
 module Simple where
 
