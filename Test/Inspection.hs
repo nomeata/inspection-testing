@@ -33,7 +33,7 @@ import GHC.Exts (lazy)
 
 To use inspection testing, you need to
 
- 1. enable the @TemplateHaskell@ langauge extension
+ 1. enable the @TemplateHaskell@ language extension
  2. load the plugin using @-fplugin Test.Inspection.Plugin@
  3. declare your proof obligations using 'inspect' or 'inspectTest'
 
@@ -69,7 +69,7 @@ data Obligation = Obligation
     { target      :: Name
         -- ^ The target of a test obligation; invariably the name of a local
         -- definition. To get the name of a function @foo@, write @'foo@. This requires
-        -- @{&#45;\# LANGAUGE TemplateHaskell \#&#45;}@.
+        -- @{&#45;\# LANGUAGE TemplateHaskell \#&#45;}@.
     , property    :: Property
         -- ^ The property of the target to be checked.
     , testName :: Maybe String
