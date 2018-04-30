@@ -94,6 +94,9 @@ data Property
     -- @f = g@, or the definition of @g@ is @g = f@, or if the definitions are
     -- @f = e@ and @g = e@.
     --
+    -- In general @f@ and @g@ need to be defined in this module, so that their
+    -- actual defintions can be inspected. 
+    --
     -- If the boolean flag is true, then ignore types during the comparison.
     = EqualTo Name Bool
 
@@ -117,18 +120,18 @@ mkObligation target prop = Obligation
     , storeResult = Nothing
     }
 
--- | Convenience function to declare two functions to be equal
+-- | Convenience function to declare two functions to be equal (see 'EqualTo')
 (===) :: Name -> Name -> Obligation
 (===) = mkEquality False False
 infix 9 ===
 
 -- | Convenience function to declare two functions to be equal, but ignoring
--- type lambdas, type arguments and type casts
+-- type lambdas, type arguments and type casts (see 'EqualTo')
 (==-) :: Name -> Name -> Obligation
 (==-) = mkEquality False True
 infix 9 ==-
 
--- | Convenience function to declare two functions to be equal, but expect the test to fail
+-- | Convenience function to declare two functions to be equal, but expect the test to fail (see 'EqualTo' and 'expectFail')
 -- (This is useful for documentation purposes, or as a TODO list.)
 (=/=) :: Name -> Name -> Obligation
 (=/=) = mkEquality True False

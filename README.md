@@ -75,9 +75,14 @@ What can I check for?
 
 Currently, inspection-testing supports
 
- * checking two definitions to be equal (useful in the context of generic programming)
- * checking the absence of a certain type (useful in the context of list or stream fusion)
+ * checking two definitions to be equal (useful in the context of generic
+   programming)
+ * checking the absence of a certain type (useful in the context of list or
+   stream fusion)
  * checking the absence of allocation (generally useful)
+
+In general, the checks need to be placed in the same module as the
+checked-definition.
 
 Possible further applications includes
 
