@@ -92,8 +92,8 @@ Possible further applications includes
 
 Let me know if you need any of these, or have further ideas.
 
-Help, I am drowining in Core!
------------------------------
+Help, I am drowning in Core!
+----------------------------
 
 inspection-testing prints the Core more or less like GHC would, and the same
 flags can be used to control the level of detail. In particular, you might want
