@@ -25,7 +25,7 @@ module Test.Inspection (
 ) where
 
 import Language.Haskell.TH
-import Language.Haskell.TH.Syntax (liftData, addTopDecls)
+import Language.Haskell.TH.Syntax (Quasi(qNewName), liftData, addTopDecls)
 import Data.Data
 import GHC.Exts (lazy)
 
@@ -181,7 +181,7 @@ didNotRunPluginError = lazy (error "Test.Inspection.Plugin did not run")
 inspectTest :: Obligation -> Q Exp
 inspectTest obl = do
     nameS <- genName
-    name <- newName nameS
+    name <- newUniqueName nameS
     anns <- inspectCommon (ValueAnnotation name) obl
     addTopDecls $
         [ SigD name (ConT ''Result)
@@ -193,3 +193,12 @@ inspectTest obl = do
     genName = do
         (r,c) <- loc_start <$> location
         return $ "inspect_" ++ show r ++ "_" ++ show c
+
+-- | Like newName, but even more unique (unique across different splices),
+-- and with unique @nameBase@s. Precondition: the string is a valid Haskell
+-- alphanumeric identifier (could be upper- or lower-case).
+newUniqueName :: Quasi q => String -> q Name
+newUniqueName str = do
+  n <- qNewName str
+  qNewName $ show n
+-- This is from https://ghc.haskell.org/trac/ghc/ticket/13054#comment:1

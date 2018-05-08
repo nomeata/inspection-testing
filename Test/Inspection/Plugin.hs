@@ -4,6 +4,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE LambdaCase #-}
 module Test.Inspection.Plugin (plugin) where
 
 import Control.Monad
@@ -141,8 +142,8 @@ updateNameInGut _ _ bind                          = bind
 
 checkProperty :: ModGuts -> TH.Name -> Property -> CoreM CheckResult
 checkProperty guts thn1 (EqualTo thn2 ignore_types) = do
-    Just n1 <- thNameToGhcName thn1
-    Just n2 <- thNameToGhcName thn2
+    n1 <- fromTHName thn1
+    n2 <- fromTHName thn2
 
     let p1 = lookupNameInGuts guts n1
     let p2 = lookupNameInGuts guts n2
@@ -176,8 +177,8 @@ checkProperty guts thn1 (EqualTo thn2 ignore_types) = do
     binds = flattenBinds (mg_binds guts)
 
 checkProperty guts thn (NoType tht) = do
-    Just n <- thNameToGhcName thn
-    Just t <- thNameToGhcName tht
+    n <- fromTHName thn
+    t <- fromTHName tht
     case lookupNameInGuts guts n of
         Nothing -> pure . Just $ ppr n <+> text "is not a local name"
         Just (v, _) -> case freeOfType (slice binds v) t of
@@ -186,13 +187,20 @@ checkProperty guts thn (NoType tht) = do
   where binds = flattenBinds (mg_binds guts)
 
 checkProperty guts thn NoAllocation = do
-    Just n <- thNameToGhcName thn
+    n <- fromTHName thn
     case lookupNameInGuts guts n of
         Nothing -> pure . Just $ ppr n <+> text "is not a local name"
         Just (v, _) -> case doesNotAllocate (slice binds v) of
             Just (v',e') -> pure . Just $ nest 4 (ppr v' <+> text "=" <+> ppr e')
             Nothing -> pure Nothing
   where binds = flattenBinds (mg_binds guts)
+
+fromTHName :: TH.Name -> CoreM Name
+fromTHName thn = thNameToGhcName thn >>= \case
+    Nothing -> do
+        errorMsg $ text "Could not resolve TH name" <+> text (show thn)
+        liftIO $ exitFailure -- kill the compiler. Is there a nicer way?
+    Just n -> return n
 
 storeResults :: Updates -> ModGuts -> CoreM ModGuts
 storeResults = flip (foldM (flip (uncurry go)))
@@ -204,7 +212,7 @@ storeResults = flip (foldM (flip (uncurry go)))
 
 dcExpr :: TH.Name -> CoreM CoreExpr
 dcExpr thn = do
-    Just name <- thNameToGhcName thn
+    name <- fromTHName thn
     dc <- lookupDataCon name
     pure $ Var (dataConWrapId dc)
 
