@@ -100,9 +100,9 @@ data Property
     -- If the boolean flag is true, then ignore types during the comparison.
     = EqualTo Name Bool
 
-    -- | Does this type not occur anywhere in the definition of the function
+    -- | Do none of these types anywhere in the definition of the function
     -- (neither locally bound nor passed as arguments)
-    | NoType Name
+    | NoTypes [Name]
 
     -- | Does this function perform no heap allocations.
     | NoAllocation
@@ -147,7 +147,7 @@ mkEquality expectFail ignore_types n1 n2 =
 --
 -- @inspect $ fusedFunction `hasNoType` ''[]@
 hasNoType :: Name -> Name -> Obligation
-hasNoType n tn = mkObligation n (NoType tn)
+hasNoType n tn = mkObligation n (NoTypes [tn])
 
 -- The exported TH functions
 
