@@ -1,5 +1,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE CPP #-}
+#ifndef ITERATIONS
+#define ITERATIONS 1000
+#endif
 module MoreTextTH where
 
 import Test.Inspection
@@ -57,7 +60,7 @@ comp (f:fs) x = appE f (comp fs x)
 
 definePipelines :: DecsQ
 definePipelines = do
-    random_pipelines <- runIO $ randomPipelines 1000
+    random_pipelines <- runIO $ randomPipelines ITERATIONS
     let pipelines = function_pipelines ++ random_pipelines
     putQ random_pipelines
     forM (nub pipelines) $ \pipeline -> do

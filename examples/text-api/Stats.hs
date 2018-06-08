@@ -12,7 +12,7 @@ stats untestable producers transformers consumers = unlines
     , stat  "Fuses"                       fuses
     , stat  "Does not fuse (but should)"  negative
     , stat  "Fuses (but should not)"      positive
-    , stat' "Does not fuse"               nofuse
+    , stat  "Does not fuse"               nofuse
     ]
   where
     allFuns = producers ++ transformers ++ consumers

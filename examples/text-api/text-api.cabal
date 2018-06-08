@@ -11,8 +11,11 @@ category:            Testing
 build-type:          Simple
 cabal-version:       >=1.10
 
+flag fast
+  default: False
+
 executable test-strict
-  CPP-Options:        -DTextFuns=TextFuns
+  --CPP-Options:        -DTextFuns=TextFuns
   main-is:             MoreTextMain.hs
   other-modules:       MoreText
                        MoreTextTH
@@ -28,6 +31,9 @@ executable test-strict
   default-language:    Haskell2010
   -- -O2 is too slow
   ghc-options:         -O
+
+  if flag(fast)
+        CPP-Options:        -DITERATIONS=20
 
 executable test-lazy
   CPP-Options:        -DTextFuns=LazyTextFuns
@@ -46,6 +52,9 @@ executable test-lazy
   default-language:    Haskell2010
   -- -O2 is too slow
   ghc-options:         -O 
+
+  if flag(fast)
+        CPP-Options:        -DITERATIONS=20
 
 executable stats
   main-is:             Stats.hs
