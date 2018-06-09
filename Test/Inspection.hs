@@ -11,6 +11,9 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE CPP #-}
 module Test.Inspection (
     -- * Synopsis
     -- $synposis
@@ -26,6 +29,9 @@ module Test.Inspection (
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax (Quasi(qNewName), liftData, addTopDecls)
+#if MIN_VERSION_GLASGOW_HASKELL(8,5,0,0)
+import Language.Haskell.TH.Syntax (getQ, putQ) -- only for needsPluginQ
+#endif
 import Data.Data
 import GHC.Exts (lazy)
 
@@ -149,13 +155,38 @@ mkEquality expectFail ignore_types n1 n2 =
 hasNoType :: Name -> Name -> Obligation
 hasNoType n tn = mkObligation n (NoTypes [tn])
 
+
+
+-- | Internal class that prevents compilation when the plugin is not loaded
+class PluginNotLoaded
+
+_pretendItsUsed :: PluginNotLoaded => ()
+_pretendItsUsed = ()
+
+needsPluginQ :: Q [Dec]
+#if MIN_VERSION_GLASGOW_HASKELL(8,5,0,0)
+needsPluginQ = getQ >>= \case
+    Just NeedsPluginInserted -> return []
+    Nothing -> do
+        putQ NeedsPluginInserted
+        [d| needsTestInspectionPlugin :: ()
+            needsTestInspectionPlugin = (() :: PluginNotLoaded => ())
+            |]
+
+-- | To ensure we insert needsPlugin only once
+data NeedsPluginInserted = NeedsPluginInserted
+#else
+needsPluginQ = return []
+#endif
+
 -- The exported TH functions
 
 inspectCommon :: AnnTarget -> Obligation -> Q [Dec]
 inspectCommon annTarget obl = do
     loc <- location
     annExpr <- liftData (obl { srcLoc = Just loc })
-    pure [PragmaD (AnnP annTarget annExpr)]
+    np <- needsPluginQ
+    pure $ np ++ [PragmaD (AnnP annTarget annExpr)]
 
 -- | As seen in the example above, the entry point to inspection testing is the
 -- 'inspect' function, to which you pass an 'Obligation'.
