@@ -161,8 +161,8 @@ hasNoType n tn = mkObligation n (NoTypes [tn])
 --
 -- @inspect $ hasNoGenerics genericFunction@
 hasNoGenerics :: Name -> Obligation
-hasNoType n = mkObligation n
-                  (NoTypes [''V1, ''U1, ''M1, ''K1, ''(:+:), ''(:*:)])
+hasNoGenerics n =
+    mkObligation n (NoTypes [''V1, ''U1, ''M1, ''K1, ''(:+:), ''(:*:)])
 
 -- | Internal class that prevents compilation when the plugin is not loaded
 class PluginNotLoaded
