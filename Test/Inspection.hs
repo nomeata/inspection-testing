@@ -24,7 +24,7 @@ module Test.Inspection (
     Result(..),
     -- * Defining obligations
     Obligation(..), mkObligation, Property(..),
-    (===), (==-), (=/=), hasNoType,
+    (===), (==-), (=/=), hasNoType, hasNoGenerics,
 ) where
 
 import Language.Haskell.TH
@@ -34,6 +34,7 @@ import Language.Haskell.TH.Syntax (getQ, putQ) -- only for needsPluginQ
 #endif
 import Data.Data
 import GHC.Exts (lazy)
+import GHC.Generics (V1(), U1(), M1(), K1(), (:+:), (:*:))
 
 {- $synposis
 
@@ -101,7 +102,7 @@ data Property
     -- @f = e@ and @g = e@.
     --
     -- In general @f@ and @g@ need to be defined in this module, so that their
-    -- actual defintions can be inspected. 
+    -- actual defintions can be inspected.
     --
     -- If the boolean flag is true, then ignore types during the comparison.
     = EqualTo Name Bool
@@ -155,7 +156,13 @@ mkEquality expectFail ignore_types n1 n2 =
 hasNoType :: Name -> Name -> Obligation
 hasNoType n tn = mkObligation n (NoTypes [tn])
 
-
+-- | Convenience function to declare that a function’s implementation does not
+-- contain any generic constructors.
+--
+-- @inspect $ hasNoGenerics genericFunction@
+hasNoGenerics :: Name -> Obligation
+hasNoType n = mkObligation n
+                  (NoTypes [''V1, ''U1, ''M1, ''K1, ''(:+:), ''(:*:)])
 
 -- | Internal class that prevents compilation when the plugin is not loaded
 class PluginNotLoaded
