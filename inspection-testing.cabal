@@ -108,6 +108,18 @@ test-suite text
   default-language:    Haskell2010
   ghc-options:         -main-is Text
 
+test-suite generics
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      examples
+  main-is:             Generics.hs
+  if flag(more-tests)
+    build-depends:       inspection-testing
+    build-depends:       base >=4.9 && <4.13
+  else
+    buildable:         False
+  default-language:    Haskell2010
+  ghc-options:         -main-is Generics
+
 test-suite generic-lens
   type:                exitcode-stdio-1.0
   hs-source-dirs:      examples
