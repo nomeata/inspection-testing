@@ -34,7 +34,7 @@ import Language.Haskell.TH.Syntax (getQ, putQ) -- only for needsPluginQ
 #endif
 import Data.Data
 import GHC.Exts (lazy)
-import GHC.Generics (V1(), U1(), M1(), K1(), (:+:), (:*:))
+import GHC.Generics (V1(), U1(), M1(), K1(), (:+:), (:*:), (:.:), Rec1, Par1)
 
 {- $synposis
 
@@ -162,7 +162,10 @@ hasNoType n tn = mkObligation n (NoTypes [tn])
 -- @inspect $ hasNoGenerics genericFunction@
 hasNoGenerics :: Name -> Obligation
 hasNoGenerics n =
-    mkObligation n (NoTypes [''V1, ''U1, ''M1, ''K1, ''(:+:), ''(:*:)])
+    mkObligation n
+        (NoTypes [ ''V1, ''U1, ''M1, ''K1, ''(:+:), ''(:*:), ''(:.:), ''Rec1
+                 , ''Par1
+                 ])
 
 -- | Internal class that prevents compilation when the plugin is not loaded
 class PluginNotLoaded
