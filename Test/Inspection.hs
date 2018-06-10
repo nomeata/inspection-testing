@@ -156,7 +156,7 @@ mkEquality expectFail ignore_types n1 n2 =
 -- | Convenience function to declare that a function’s implementation does not
 -- mention a type
 --
--- @inspect $ fusedFunction `hasNoType` ''[]@
+-- @'inspect' $ fusedFunction ``hasNoType`` ''[]@
 hasNoType :: Name -> Name -> Obligation
 hasNoType n tn = mkObligation n (NoTypes [tn])
 
@@ -171,9 +171,16 @@ hasNoGenerics n =
                  , ''Par1
                  ])
 
+-- | Convinience function to declare that a function's implementation does not
+-- include dictionaries.
+--
+-- @'inspect' $ 'hasNoDicts' specializedFunction@
 hasNoDicts :: Name -> Obligation
 hasNoDicts n = hasNoDictsExcept n []
 
+-- | A variant of 'hasNoDicts', which white lists some type-classes.
+--
+-- @'inspect' $ fieldLens ``hasNoDictsExcept`` [''Functor]@
 hasNoDictsExcept :: Name -> [Name] -> Obligation
 hasNoDictsExcept n tns = mkObligation n (NoDicts tns)
 

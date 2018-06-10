@@ -99,6 +99,15 @@ test-suite generics
   default-language:    Haskell2010
   ghc-options:         -main-is Generics
 
+test-suite dictionary
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      examples
+  main-is:             Dictionary.hs
+  build-depends:       inspection-testing
+  build-depends:       base >=4.9 && <4.13
+  default-language:    Haskell2010
+  ghc-options:         -main-is Dictionary
+
 flag more-tests
   description: Run tests that pull in specific versions of other packages
   default: False
