@@ -8,6 +8,7 @@ module Test.Inspection.Core
   , eqSlice
   , freeOfType
   , doesNotAllocate
+  , doesNotContainDicts
   ) where
 
 import CoreSyn
@@ -22,6 +23,7 @@ import Outputable
 import PprCore
 import Coercion
 import Util
+import TyCon (isClassTyCon)
 
 import qualified Data.Set as S
 import Control.Monad.State.Strict
@@ -268,3 +270,37 @@ doesNotAllocate slice = listToMaybe [ (v,e) | (v,e) <- slice, not (go (idArity v
         -- unlifted
 
     goA a (_,_, e) = go a e
+
+-- | Returns @True@ if the given core expression mentions no type constructor
+-- anywhere that has the given name.
+doesNotContainDicts :: Slice -> Maybe (Var, CoreExpr)
+doesNotContainDicts slice = listToMaybe [ (v,e) | (v,e) <- slice, not (go e) ]
+  where
+    goV v = goT (varType v)
+
+    go (Var v)           = goV v
+    go (Lit _ )          = True
+    go (App e a)         = go e && go a
+    go (Lam b e)         = goV b && go e
+    go (Let bind body)   = all goB (flattenBinds [bind]) && go body
+    go (Case s b _ alts) = go s && goV b && all goA alts
+    go (Cast e _)        = go e
+    go (Tick _ e)        = go e
+    go (Type t)          = (goT t)
+    go (Coercion _)      = True
+
+    goB (b, e) = goV b && go e
+
+    goA (_,pats, e) = all goV pats && go e
+
+    goT (TyVarTy _)      = True
+    goT (AppTy t1 t2)    = goT t1 && goT t2
+    goT (TyConApp tc ts) = not (isClassTyCon tc) && all goT ts
+                        -- ↑ This is the crucial bit
+    goT (ForAllTy _ t)   = goT t
+#if MIN_VERSION_GLASGOW_HASKELL(8,2,0,0)
+    goT (FunTy t1 t2)    = goT t1 && goT t2
+#endif
+    goT (LitTy _)        = True
+    goT (CastTy t _)     = goT t
+    goT (CoercionTy _)   = True

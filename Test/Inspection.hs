@@ -24,7 +24,7 @@ module Test.Inspection (
     Result(..),
     -- * Defining obligations
     Obligation(..), mkObligation, Property(..),
-    (===), (==-), (=/=), hasNoType, hasNoGenerics,
+    (===), (==-), (=/=), hasNoType, hasNoGenerics, hasNoDicts,
 ) where
 
 import Language.Haskell.TH
@@ -113,6 +113,9 @@ data Property
 
     -- | Does this function perform no heap allocations.
     | NoAllocation
+
+    -- | Does this value constain dictionaries.
+    | NoDicts
     deriving Data
 
 -- | Creates an inspection obligation for the given function name
@@ -166,6 +169,9 @@ hasNoGenerics n =
         (NoTypes [ ''V1, ''U1, ''M1, ''K1, ''(:+:), ''(:*:), ''(:.:), ''Rec1
                  , ''Par1
                  ])
+
+hasNoDicts :: Name -> Obligation
+hasNoDicts n = mkObligation n NoDicts
 
 -- | Internal class that prevents compilation when the plugin is not loaded
 class PluginNotLoaded
