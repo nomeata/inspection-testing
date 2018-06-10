@@ -273,8 +273,8 @@ doesNotAllocate slice = listToMaybe [ (v,e) | (v,e) <- slice, not (go (idArity v
 
 -- | Returns @True@ if the given core expression mentions no type constructor
 -- anywhere that has the given name.
-doesNotContainDicts :: Slice -> Maybe (Var, CoreExpr)
-doesNotContainDicts slice = listToMaybe [ (v,e) | (v,e) <- slice, not (go e) ]
+doesNotContainDicts :: Slice -> [Name] -> Maybe (Var, CoreExpr)
+doesNotContainDicts slice tcNs = listToMaybe [ (v,e) | (v,e) <- slice, not (go e) ]
   where
     goV v = goT (varType v)
 
@@ -295,8 +295,10 @@ doesNotContainDicts slice = listToMaybe [ (v,e) | (v,e) <- slice, not (go e) ]
 
     goT (TyVarTy _)      = True
     goT (AppTy t1 t2)    = goT t1 && goT t2
-    goT (TyConApp tc ts) = not (isClassTyCon tc) && all goT ts
-                        -- ↑ This is the crucial bit
+    goT (TyConApp tc ts) = notDict && all goT ts
+      where
+        notDict = not (isClassTyCon tc) || any (getName tc ==) tcNs
+        -- ↑ This is the crucial bit
     goT (ForAllTy _ t)   = goT t
 #if MIN_VERSION_GLASGOW_HASKELL(8,2,0,0)
     goT (FunTy t1 t2)    = goT t1 && goT t2
