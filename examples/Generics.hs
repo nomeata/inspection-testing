@@ -1,4 +1,4 @@
-{-# LANGUAGE RankNTypes, DeriveGeneric, TypeApplications, DataKinds, ExistentialQuantification, TemplateHaskell #-}
+{-# LANGUAGE DeriveGeneric, TemplateHaskell #-}
 {-# OPTIONS_GHC -fplugin=Test.Inspection.Plugin #-}
 module Generics (main) where
 
