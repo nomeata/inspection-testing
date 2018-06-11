@@ -157,7 +157,7 @@ hasNoType :: Name -> Name -> Obligation
 hasNoType n tn = mkObligation n (NoTypes [tn])
 
 -- | Convenience function to declare that a function’s implementation does not
--- contain any generic constructors.
+-- contain any generic type constructors.
 --
 -- @inspect $ hasNoGenerics genericFunction@
 hasNoGenerics :: Name -> Obligation
