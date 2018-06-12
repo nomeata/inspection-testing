@@ -1,7 +1,12 @@
 # Revision history for inspection-testing
 
-## 0.2.0.2 -- UNRELEASED
+## 0.3 -- UNRELEASED
 
+* On GHC-8.5 or newer, use of `inspect` or `inspectTest` without actually
+  loading the plugin will cause compilation to fail at type-checking time
+  (thanks to @adamgundry for the idea)
+* Support for `hasNoTypeClass` (thanks to @phadej)
+* Support for `hasNoGenerics` (thanks to @isovector)
 * No need to keep referenced variables alive using annotations:
   Simply mentioning them in a Template Haskell splice keeps them alive!
 
