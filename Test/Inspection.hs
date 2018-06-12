@@ -25,7 +25,7 @@ module Test.Inspection (
     -- * Defining obligations
     Obligation(..), mkObligation, Property(..),
     (===), (==-), (=/=), hasNoType, hasNoGenerics,
-    hasNoDicts, hasNoDictsExcept,
+    hasNoTypeClasses, hasNoTypeClassesExcept,
 ) where
 
 import Language.Haskell.TH
@@ -116,7 +116,7 @@ data Property
     | NoAllocation
 
     -- | Does this value constain dictionaries.
-    | NoDicts [Name]
+    | NoTypeClasses [Name]
     deriving Data
 
 -- | Creates an inspection obligation for the given function name
@@ -174,15 +174,15 @@ hasNoGenerics n =
 -- | Convinience function to declare that a function's implementation does not
 -- include dictionaries.
 --
--- @'inspect' $ 'hasNoDicts' specializedFunction@
-hasNoDicts :: Name -> Obligation
-hasNoDicts n = hasNoDictsExcept n []
+-- @'inspect' $ 'hasNoTypeClasses' specializedFunction@
+hasNoTypeClasses :: Name -> Obligation
+hasNoTypeClasses n = hasNoTypeClassesExcept n []
 
--- | A variant of 'hasNoDicts', which white lists some type-classes.
+-- | A variant of 'hasNoTypeClasses', which white lists some type-classes.
 --
--- @'inspect' $ fieldLens ``hasNoDictsExcept`` [''Functor]@
-hasNoDictsExcept :: Name -> [Name] -> Obligation
-hasNoDictsExcept n tns = mkObligation n (NoDicts tns)
+-- @'inspect' $ fieldLens ``hasNoTypeClassesExcept`` [''Functor]@
+hasNoTypeClassesExcept :: Name -> [Name] -> Obligation
+hasNoTypeClassesExcept n tns = mkObligation n (NoTypeClasses tns)
 
 -- | Internal class that prevents compilation when the plugin is not loaded
 class PluginNotLoaded

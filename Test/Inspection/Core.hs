@@ -8,7 +8,7 @@ module Test.Inspection.Core
   , eqSlice
   , freeOfType
   , doesNotAllocate
-  , doesNotContainDicts
+  , doesNotContainTypeClasses
   ) where
 
 import CoreSyn
@@ -273,8 +273,8 @@ doesNotAllocate slice = listToMaybe [ (v,e) | (v,e) <- slice, not (go (idArity v
 
 -- | Returns @True@ if the given core expression mentions no type constructor
 -- anywhere that has the given name.
-doesNotContainDicts :: Slice -> [Name] -> Maybe (Var, CoreExpr)
-doesNotContainDicts slice tcNs = listToMaybe [ (v,e) | (v,e) <- slice, not (go e) ]
+doesNotContainTypeClasses :: Slice -> [Name] -> Maybe (Var, CoreExpr)
+doesNotContainTypeClasses slice tcNs = listToMaybe [ (v,e) | (v,e) <- slice, not (go e) ]
   where
     goV v = goT (varType v)
 
@@ -295,9 +295,9 @@ doesNotContainDicts slice tcNs = listToMaybe [ (v,e) | (v,e) <- slice, not (go e
 
     goT (TyVarTy _)      = True
     goT (AppTy t1 t2)    = goT t1 && goT t2
-    goT (TyConApp tc ts) = notDict && all goT ts
+    goT (TyConApp tc ts) = notTypeClasse && all goT ts
       where
-        notDict = not (isClassTyCon tc) || any (getName tc ==) tcNs
+        notTypeClasse = not (isClassTyCon tc) || any (getName tc ==) tcNs
         -- ↑ This is the crucial bit
     goT (ForAllTy _ t)   = goT t
 #if MIN_VERSION_GLASGOW_HASKELL(8,2,0,0)
