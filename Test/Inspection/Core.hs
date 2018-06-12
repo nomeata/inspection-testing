@@ -23,7 +23,7 @@ import Outputable
 import PprCore
 import Coercion
 import Util
-import TyCon (isClassTyCon)
+import TyCon (TyCon, isClassTyCon)
 
 import qualified Data.Set as S
 import Control.Monad.State.Strict
@@ -197,7 +197,10 @@ eqSlice it slice1 slice2
 -- | Returns @True@ if the given core expression mentions no type constructor
 -- anywhere that has the given name.
 freeOfType :: Slice -> Name -> Maybe (Var, CoreExpr)
-freeOfType slice tcN = listToMaybe [ (v,e) | (v,e) <- slice, not (go e) ]
+freeOfType slice tcN = allTyCons (\tc -> getName tc /= tcN) slice
+
+allTyCons :: (TyCon -> Bool) -> Slice -> Maybe (Var, CoreExpr)
+allTyCons predicate slice = listToMaybe [ (v,e) | (v,e) <- slice, not (go e) ]
   where
     goV v = goT (varType v)
 
@@ -218,7 +221,7 @@ freeOfType slice tcN = listToMaybe [ (v,e) | (v,e) <- slice, not (go e) ]
 
     goT (TyVarTy _)      = True
     goT (AppTy t1 t2)    = goT t1 && goT t2
-    goT (TyConApp tc ts) = getName tc /= tcN && all goT ts
+    goT (TyConApp tc ts) = predicate tc && all goT ts
                         -- ↑ This is the crucial bit
     goT (ForAllTy _ t)   = goT t
 #if MIN_VERSION_GLASGOW_HASKELL(8,2,0,0)
@@ -271,38 +274,6 @@ doesNotAllocate slice = listToMaybe [ (v,e) | (v,e) <- slice, not (go (idArity v
 
     goA a (_,_, e) = go a e
 
--- | Returns @True@ if the given core expression mentions no type constructor
--- anywhere that has the given name.
 doesNotContainTypeClasses :: Slice -> [Name] -> Maybe (Var, CoreExpr)
-doesNotContainTypeClasses slice tcNs = listToMaybe [ (v,e) | (v,e) <- slice, not (go e) ]
-  where
-    goV v = goT (varType v)
-
-    go (Var v)           = goV v
-    go (Lit _ )          = True
-    go (App e a)         = go e && go a
-    go (Lam b e)         = goV b && go e
-    go (Let bind body)   = all goB (flattenBinds [bind]) && go body
-    go (Case s b _ alts) = go s && goV b && all goA alts
-    go (Cast e _)        = go e
-    go (Tick _ e)        = go e
-    go (Type t)          = (goT t)
-    go (Coercion _)      = True
-
-    goB (b, e) = goV b && go e
-
-    goA (_,pats, e) = all goV pats && go e
-
-    goT (TyVarTy _)      = True
-    goT (AppTy t1 t2)    = goT t1 && goT t2
-    goT (TyConApp tc ts) = notTypeClasse && all goT ts
-      where
-        notTypeClasse = not (isClassTyCon tc) || any (getName tc ==) tcNs
-        -- ↑ This is the crucial bit
-    goT (ForAllTy _ t)   = goT t
-#if MIN_VERSION_GLASGOW_HASKELL(8,2,0,0)
-    goT (FunTy t1 t2)    = goT t1 && goT t2
-#endif
-    goT (LitTy _)        = True
-    goT (CastTy t _)     = goT t
-    goT (CoercionTy _)   = True
+doesNotContainTypeClasses slice tcNs
+    = allTyCons (\tc -> not (isClassTyCon tc) || any (getName tc ==) tcNs) slice
