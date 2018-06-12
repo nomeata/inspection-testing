@@ -43,8 +43,8 @@ source-repository head
 library
   exposed-modules:     Test.Inspection
                        Test.Inspection.Plugin
-                       Test.Inspection.TcPlugin
                        Test.Inspection.Core
+  other-modules:       Test.Inspection.TcPlugin
   build-depends:       base >=4.9 && <4.13
   build-depends:       ghc >= 8.0.2 && <8.6
   build-depends:       template-haskell
