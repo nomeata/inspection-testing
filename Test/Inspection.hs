@@ -24,6 +24,8 @@ module Test.Inspection (
     Result(..),
     -- * Defining obligations
     Obligation(..), mkObligation, Property(..),
+    -- * Convenience functions
+    -- $convenience
     (===), (==-), (=/=), hasNoType, hasNoGenerics,
     hasNoTypeClasses, hasNoTypeClassesExcept,
 ) where
@@ -115,7 +117,7 @@ data Property
     -- | Does this function perform no heap allocations.
     | NoAllocation
 
-    -- | Does this value constain dictionaries.
+    -- | Does this value contain dictionaries (/except/ of the listed classes).
     | NoTypeClasses [Name]
     deriving Data
 
@@ -131,18 +133,23 @@ mkObligation target prop = Obligation
     , storeResult = Nothing
     }
 
--- | Convenience function to declare two functions to be equal (see 'EqualTo')
+{- $convenience
+
+These convenience functions create common test obligations directly.
+-}
+
+-- | Declare two functions to be equal (see 'EqualTo')
 (===) :: Name -> Name -> Obligation
 (===) = mkEquality False False
 infix 9 ===
 
--- | Convenience function to declare two functions to be equal, but ignoring
+-- | Declare two functions to be equal, but ignoring
 -- type lambdas, type arguments and type casts (see 'EqualTo')
 (==-) :: Name -> Name -> Obligation
 (==-) = mkEquality False True
 infix 9 ==-
 
--- | Convenience function to declare two functions to be equal, but expect the test to fail (see 'EqualTo' and 'expectFail')
+-- | Reclare two functions to be equal, but expect the test to fail (see 'EqualTo' and 'expectFail')
 -- (This is useful for documentation purposes, or as a TODO list.)
 (=/=) :: Name -> Name -> Obligation
 (=/=) = mkEquality True False
@@ -153,15 +160,18 @@ mkEquality expectFail ignore_types n1 n2 =
     (mkObligation n1 (EqualTo n2 ignore_types))
         { expectFail = expectFail }
 
--- | Convenience function to declare that a function’s implementation does not
--- mention a type
+-- | Declare that in a function’s implementation, the given type does not occur.
+--
+-- More precisely: No locally bound variable (let-bound, lambda-bound or
+-- pattern-bound) has a type that contains the given type constructor.
 --
 -- @'inspect' $ fusedFunction ``hasNoType`` ''[]@
 hasNoType :: Name -> Name -> Obligation
 hasNoType n tn = mkObligation n (NoTypes [tn])
 
--- | Convenience function to declare that a function’s implementation does not
--- contain any generic type constructors.
+-- | Declare that a function’s implementation does not contain any generic types.
+-- This is just 'asNoType' applied to the usual type constructors used in
+-- "GHC.Generics".
 --
 -- @inspect $ hasNoGenerics genericFunction@
 hasNoGenerics :: Name -> Obligation
@@ -171,14 +181,16 @@ hasNoGenerics n =
                  , ''Par1
                  ])
 
--- | Convinience function to declare that a function's implementation does not
--- include dictionaries.
+-- | Declare that a function's implementation does not include dictionaries.
+--
+-- More precisely: No locally bound variable (let-bound, lambda-bound or
+-- pattern-bound) has a type that contains a type that mentions a type class.
 --
 -- @'inspect' $ 'hasNoTypeClasses' specializedFunction@
 hasNoTypeClasses :: Name -> Obligation
 hasNoTypeClasses n = hasNoTypeClassesExcept n []
 
--- | A variant of 'hasNoTypeClasses', which white lists some type-classes.
+-- | A variant of 'hasNoTypeClasses', which white-lists some type-classes.
 --
 -- @'inspect' $ fieldLens ``hasNoTypeClassesExcept`` [''Functor]@
 hasNoTypeClassesExcept :: Name -> [Name] -> Obligation
