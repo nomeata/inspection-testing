@@ -1,6 +1,6 @@
 # Revision history for inspection-testing
 
-## 0.3 -- UNRELEASED
+## 0.3 -- 2018-07-07
 
 * On GHC-8.5 or newer, use of `inspect` or `inspectTest` without actually
   loading the plugin will cause compilation to fail at type-checking time
