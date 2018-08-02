@@ -1,6 +1,6 @@
 -- | This module implements some of analyses of Core expressions necessary for
 -- "Test.Inspection". Normally, users of this pacakge can ignore this module. 
-{-# LANGUAGE CPP, FlexibleContexts #-}
+{-# LANGUAGE CPP, FlexibleContexts, ViewPatterns #-}
 module Test.Inspection.Core
   ( slice
   , pprSlice
@@ -25,6 +25,7 @@ import Coercion
 import Util
 import TyCon (TyCon, isClassTyCon)
 
+import Data.List (sortOn)
 import qualified Data.Set as S
 import Control.Monad.State.Strict
 import Control.Monad.Trans.Maybe
@@ -36,6 +37,10 @@ type Slice = [(Var, CoreExpr)]
 slice :: [(Var, CoreExpr)] -> Var -> Slice
 slice binds v = [(v,e) | (v,e) <- binds, v `S.member` used ]
   where
+    rhssOfBindSorted (NonRec _ rhs) = [rhs]
+    rhssOfBindSorted (Rec pairs)    =
+      snd <$> sortOn (Name.occNameFS . Name.getOccName . fst) pairs
+
     used = execState (goV v) S.empty
 
     local = S.fromList (map fst binds)
@@ -53,7 +58,7 @@ slice binds v = [(v,e) | (v,e) <- binds, v `S.member` used ]
     go (App e arg)                 = go e >> go arg
     go (Lam b e) | isTyVar b       = go e
     go (Lam _ e)                   = go e
-    go (Let bind body)             = mapM_ go (rhssOfBind bind) >> go body
+    go (Let bind body)             = mapM_ go (rhssOfBindSorted bind) >> go body
     go (Case s _ _ alts)           = go s >> mapM_ goA alts
     go (Cast e _)                  = go e
     go (Tick _ e)                  = go e
@@ -87,14 +92,21 @@ withLessDetail sdoc = withPprStyle defaultUserStyle sdoc
 type VarPair = (Var, Var)
 type VarPairSet = S.Set VarPair
 
+-- | Sort elements of a slice by their OccNames, so that we compare the
+-- correct terms for equality
+orderSlice :: Slice -> Slice
+orderSlice = sortOn (Name.occNameFS . Name.getOccName . fst)
+
 -- | This is a heuristic, which only works if both slices
 -- have auxillary variables in the right order.
+-- [Question: is this fixed by orderSlice? ]
+--
 -- (This is mostly to work-around the buggy CSE in GHC-8.0)
 -- It also breaks if there is shadowing.
 eqSlice :: Bool {- ^ ignore types -} -> Slice -> Slice -> Bool
 eqSlice _ slice1 slice2 | null slice1 || null slice2 = null slice1 == null slice2
   -- Mostly defensive programming (slices should not be empty)
-eqSlice it slice1 slice2
+eqSlice it (orderSlice -> slice1) (orderSlice -> slice2)
   = step (S.singleton (fst (last slice1), fst (last slice2))) S.empty
   where
     step :: VarPairSet -> VarPairSet -> Bool
@@ -167,8 +179,9 @@ eqSlice it slice1 slice2
            sequence_ $ zipWith (go env') rs1 rs2
            go env' e1 e2
       where
-        (bs1,rs1) = unzip ps1
-        (bs2,rs2) = unzip ps2
+        -- Make sure recursive bindings are sorted by name
+        (bs1,rs1) = unzip (orderSlice ps1)
+        (bs2,rs2) = unzip (orderSlice ps2)
         env' = rnBndrs2 env bs1 bs2
 
     go env (Case e1 b1 t1 a1) (Case e2 b2 t2 a2)
