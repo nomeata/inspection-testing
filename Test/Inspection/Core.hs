@@ -96,9 +96,6 @@ eqTerm
   -> (Var, Slice) -- ^ First variable, and the bindings it gives rise to
   -> (Var, Slice) -- ^ Second variable, and the bindings it gives rise to
   -> Bool
-eqTerm _ (_, slice1) (_, slice2)
-  | null slice1 || null slice2 = null slice1 == null slice2
-  -- Mostly defensive programming (slices should not be empty)
 eqTerm it (v1, slice1) (v2, slice2)
   = step (S.singleton (v1, v2)) S.empty
   where
