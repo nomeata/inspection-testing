@@ -1,5 +1,5 @@
 name:                inspection-testing
-version:             0.3
+version:             0.3.1
 synopsis:            GHC plugin to do inspection testing
 description:         Some carefully crafted libraries make promises to their
                      users beyond functionality and performance.
@@ -72,6 +72,15 @@ test-suite simple
   build-depends:       base >=4.9 && <4.13
   default-language:    Haskell2010
   ghc-options:         -main-is Simple
+
+test-suite mutual-recursion
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      examples
+  main-is:             MutualRecursion.hs
+  build-depends:       inspection-testing
+  build-depends:       base >=4.9 && <4.13
+  default-language:    Haskell2010
+  ghc-options:         -main-is MutualRecursion
 
 test-suite simple-test
   type:                exitcode-stdio-1.0

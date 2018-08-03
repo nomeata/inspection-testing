@@ -165,7 +165,7 @@ checkProperty guts thn1 (EqualTo thn2 ignore_types) = do
        , Just (v2, _) <- p2
        , let slice1 = slice binds v1
        , let slice2 = slice binds v2
-       -> if eqSlice ignore_types slice1 slice2
+       -> if eqTerm ignore_types (v1, slice1) (v2, slice2)
           -- OK if they have the same expression
           then return Nothing
           -- Not ok if the expression differ

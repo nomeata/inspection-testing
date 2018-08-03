@@ -1,5 +1,9 @@
 # Revision history for inspection-testing
 
+## 0.3.1 -- 2018-08-02
+
+* Recursive binder ordering no longer matters
+
 ## 0.3 -- 2018-07-07
 
 * On GHC-8.5 or newer, use of `inspect` or `inspectTest` without actually

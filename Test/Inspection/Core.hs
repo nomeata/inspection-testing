@@ -5,7 +5,7 @@ module Test.Inspection.Core
   ( slice
   , pprSlice
   , pprSliceDifference
-  , eqSlice
+  , eqTerm
   , freeOfType
   , doesNotAllocate
   , doesNotContainTypeClasses
@@ -91,11 +91,16 @@ type VarPairSet = S.Set VarPair
 -- have auxillary variables in the right order.
 -- (This is mostly to work-around the buggy CSE in GHC-8.0)
 -- It also breaks if there is shadowing.
-eqSlice :: Bool {- ^ ignore types -} -> Slice -> Slice -> Bool
-eqSlice _ slice1 slice2 | null slice1 || null slice2 = null slice1 == null slice2
+eqTerm
+  :: Bool {- ^ ignore types -}
+  -> (Var, Slice) -- ^ First variable, and the bindings it gives rise to
+  -> (Var, Slice) -- ^ Second variable, and the bindings it gives rise to
+  -> Bool
+eqTerm _ (_, slice1) (_, slice2)
+  | null slice1 || null slice2 = null slice1 == null slice2
   -- Mostly defensive programming (slices should not be empty)
-eqSlice it slice1 slice2
-  = step (S.singleton (fst (last slice1), fst (last slice2))) S.empty
+eqTerm it (v1, slice1) (v2, slice2)
+  = step (S.singleton (v1, v2)) S.empty
   where
     step :: VarPairSet -> VarPairSet -> Bool
     step wanted done
