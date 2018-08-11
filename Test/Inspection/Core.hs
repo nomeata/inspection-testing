@@ -1,5 +1,5 @@
--- | This module implements some of analyses of Core expressions necessary for
--- "Test.Inspection". Normally, users of this pacakge can ignore this module. 
+-- | This module implements some analyses of Core expressions necessary for
+-- "Test.Inspection". Normally, users of this package can ignore this module.
 {-# LANGUAGE CPP, FlexibleContexts #-}
 module Test.Inspection.Core
   ( slice
@@ -88,7 +88,7 @@ type VarPair = (Var, Var)
 type VarPairSet = S.Set VarPair
 
 -- | This is a heuristic, which only works if both slices
--- have auxillary variables in the right order.
+-- have auxiliary variables in the right order.
 -- (This is mostly to work-around the buggy CSE in GHC-8.0)
 -- It also breaks if there is shadowing.
 eqSlice :: Bool {- ^ ignore types -} -> Slice -> Slice -> Bool

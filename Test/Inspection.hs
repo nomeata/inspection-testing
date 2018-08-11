@@ -72,7 +72,7 @@ inspect $ 'lhs === 'rhs
 --
 -- It is recommended to build it using 'mkObligation', for backwards
 -- compatibility when new fields are added. You can also use the more
--- memonic convenience functions like '(===)' or 'hasNoType'.
+-- mnemonic convenience functions like '(===)' or 'hasNoType'.
 --
 -- The obligation needs to be passed to 'inspect'.
 data Obligation = Obligation
@@ -110,7 +110,7 @@ data Property
     -- If the boolean flag is true, then ignore types during the comparison.
     = EqualTo Name Bool
 
-    -- | Do none of these types anywhere in the definition of the function
+    -- | Do none of these types appear anywhere in the definition of the function
     -- (neither locally bound nor passed as arguments)
     | NoTypes [Name]
 
@@ -233,7 +233,7 @@ inspectCommon annTarget obl = do
 inspect :: Obligation -> Q [Dec]
 inspect = inspectCommon ModuleAnnotation
 
--- | The result of 'inspectTest', which a more or less helpful text message
+-- | The result of 'inspectTest', which has a more or less helpful text message
 data Result = Failure String | Success String
     deriving Show
 
