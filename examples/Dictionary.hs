@@ -9,11 +9,11 @@ import Control.Monad (replicateM_)
 import Data.Traversable (foldMapDefault)
 import Data.Semigroup (Semigroup)
 
-putStrLn' :: MonadIO m =>  String -> m ()
+putStrLn' :: MonadIO m => String -> m ()
 putStrLn' = liftIO . putStrLn
 
 action :: MonadIO m => m ()
-action = replicateM_ 10 (putStrLn' "foo")
+action = putStrLn' "foo" >> putStrLn' "bar"
 
 specialized :: IO ()
 specialized = action
