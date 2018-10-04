@@ -149,7 +149,7 @@ infix 9 ===
 (==-) = mkEquality False True
 infix 9 ==-
 
--- | Reclare two functions to be equal, but expect the test to fail (see 'EqualTo' and 'expectFail')
+-- | Declare two functions to be equal, but expect the test to fail (see 'EqualTo' and 'expectFail')
 -- (This is useful for documentation purposes, or as a TODO list.)
 (=/=) :: Name -> Name -> Obligation
 (=/=) = mkEquality True False
