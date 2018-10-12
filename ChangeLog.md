@@ -1,5 +1,11 @@
 # Revision history for inspection-testing
 
+## 0.4 -- 2018-10-12
+
+* Support GHC-8.6
+* On GHC-8.4 or newer, `inspect` and `inspectTest` will automatically load the
+  plugin.
+
 ## 0.3 -- 2018-07-07
 
 * On GHC-8.5 or newer, use of `inspect` or `inspectTest` without actually
