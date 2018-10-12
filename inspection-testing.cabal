@@ -44,7 +44,6 @@ library
   exposed-modules:     Test.Inspection
                        Test.Inspection.Plugin
                        Test.Inspection.Core
-  other-modules:       Test.Inspection.TcPlugin
   build-depends:       base >=4.9 && <4.13
   build-depends:       ghc >= 8.0.2 && <8.7
   build-depends:       template-haskell
@@ -62,7 +61,8 @@ test-suite NS_NP
   build-depends:       base >=4.9 && <4.13
   default-language:    Haskell2010
   ghc-options:         -main-is NS_NP
-
+  if impl(ghc < 8.4)
+      ghc-options:       -fplugin=Test.Inspection.Plugin
 
 test-suite simple
   type:                exitcode-stdio-1.0
@@ -72,6 +72,8 @@ test-suite simple
   build-depends:       base >=4.9 && <4.13
   default-language:    Haskell2010
   ghc-options:         -main-is Simple
+  if impl(ghc < 8.4)
+      ghc-options:       -fplugin=Test.Inspection.Plugin
 
 test-suite simple-test
   type:                exitcode-stdio-1.0
@@ -80,6 +82,8 @@ test-suite simple-test
   build-depends:       inspection-testing
   build-depends:       base >=4.9 && <4.13
   default-language:    Haskell2010
+  if impl(ghc < 8.4)
+      ghc-options:       -fplugin=Test.Inspection.Plugin
 
 test-suite fusion
   type:                exitcode-stdio-1.0
@@ -89,6 +93,8 @@ test-suite fusion
   build-depends:       base >=4.9 && <4.13
   default-language:    Haskell2010
   ghc-options:         -main-is Fusion
+  if impl(ghc < 8.4)
+      ghc-options:       -fplugin=Test.Inspection.Plugin
 
 test-suite generics
   type:                exitcode-stdio-1.0
@@ -98,6 +104,8 @@ test-suite generics
   build-depends:       base >=4.9 && <4.13
   default-language:    Haskell2010
   ghc-options:         -main-is Generics
+  if impl(ghc < 8.4)
+      ghc-options:       -fplugin=Test.Inspection.Plugin
 
 test-suite dictionary
   type:                exitcode-stdio-1.0
@@ -107,6 +115,8 @@ test-suite dictionary
   build-depends:       base >=4.9 && <4.13
   default-language:    Haskell2010
   ghc-options:         -main-is Dictionary
+  if impl(ghc < 8.4)
+      ghc-options:       -fplugin=Test.Inspection.Plugin
 
 flag more-tests
   description: Run tests that pull in specific versions of other packages
@@ -125,6 +135,8 @@ test-suite text
     buildable:         False
   default-language:    Haskell2010
   ghc-options:         -main-is Text
+  if impl(ghc < 8.4)
+      ghc-options:       -fplugin=Test.Inspection.Plugin
 
 test-suite generic-lens
   type:                exitcode-stdio-1.0
@@ -138,4 +150,5 @@ test-suite generic-lens
     buildable:         False
   default-language:    Haskell2010
   ghc-options:         -main-is GenericLens
-
+  if impl(ghc < 8.4)
+      ghc-options:       -fplugin=Test.Inspection.Plugin

@@ -1,6 +1,5 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE TemplateHaskell #-}
-{-# OPTIONS_GHC -fplugin Test.Inspection.Plugin #-}
 module Dictionary (main) where
 
 import Test.Inspection

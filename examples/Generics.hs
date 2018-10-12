@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveGeneric, TemplateHaskell #-}
-{-# OPTIONS_GHC -fplugin=Test.Inspection.Plugin #-}
 module Generics (main) where
 
 import GHC.Generics

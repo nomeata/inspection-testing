@@ -32,8 +32,8 @@ module Test.Inspection (
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax (Quasi(qNewName), liftData, addTopDecls)
-#if MIN_VERSION_GLASGOW_HASKELL(8,5,0,0)
-import Language.Haskell.TH.Syntax (getQ, putQ) -- only for needsPluginQ
+#if MIN_VERSION_GLASGOW_HASKELL(8,4,0,0)
+import Language.Haskell.TH.Syntax (addCorePlugin)
 #endif
 import Data.Data
 import GHC.Exts (lazy)
@@ -44,14 +44,12 @@ import GHC.Generics (V1(), U1(), M1(), K1(), (:+:), (:*:), (:.:), Rec1, Par1)
 To use inspection testing, you need to
 
  1. enable the @TemplateHaskell@ language extension
- 2. load the plugin using @-fplugin Test.Inspection.Plugin@
- 3. declare your proof obligations using 'inspect' or 'inspectTest'
+ 2. declare your proof obligations using 'inspect' or 'inspectTest'
 
 An example module is
 
 @
 {&#45;\# LANGUAGE TemplateHaskell \#&#45;}
-{&#45;\# OPTIONS_GHC -O -fplugin Test.Inspection.Plugin \#&#45;}
 module Simple where
 
 import Test.Inspection
@@ -63,6 +61,11 @@ rhs f Nothing = True
 rhs f (Just _) = False
 
 inspect $ 'lhs === 'rhs
+@
+
+On GHC < 8.4, you have to explicitly load the plugin:
+@
+{&#45;\# LANGUAGE TemplateHaskell \#&#45;}
 @
 -}
 
@@ -196,36 +199,16 @@ hasNoTypeClasses n = hasNoTypeClassesExcept n []
 hasNoTypeClassesExcept :: Name -> [Name] -> Obligation
 hasNoTypeClassesExcept n tns = mkObligation n (NoTypeClasses tns)
 
--- | Internal class that prevents compilation when the plugin is not loaded
-class PluginNotLoaded
-
-_pretendItsUsed :: PluginNotLoaded => ()
-_pretendItsUsed = ()
-
-needsPluginQ :: Q [Dec]
-#if MIN_VERSION_GLASGOW_HASKELL(8,5,0,0)
-needsPluginQ = getQ >>= \case
-    Just NeedsPluginInserted -> return []
-    Nothing -> do
-        putQ NeedsPluginInserted
-        [d| needsTestInspectionPlugin :: ()
-            needsTestInspectionPlugin = (() :: PluginNotLoaded => ())
-            |]
-
--- | To ensure we insert needsPlugin only once
-data NeedsPluginInserted = NeedsPluginInserted
-#else
-needsPluginQ = return []
-#endif
-
 -- The exported TH functions
 
 inspectCommon :: AnnTarget -> Obligation -> Q [Dec]
 inspectCommon annTarget obl = do
+#if MIN_VERSION_GLASGOW_HASKELL(8,4,0,0)
+    addCorePlugin "Test.Inspection.Plugin"
+#endif
     loc <- location
     annExpr <- liftData (obl { srcLoc = Just loc })
-    np <- needsPluginQ
-    pure $ np ++ [PragmaD (AnnP annTarget annExpr)]
+    pure $ [PragmaD (AnnP annTarget annExpr)]
 
 -- | As seen in the example above, the entry point to inspection testing is the
 -- 'inspect' function, to which you pass an 'Obligation'.

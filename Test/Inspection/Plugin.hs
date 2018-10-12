@@ -20,14 +20,12 @@ import GhcPlugins hiding (SrcLoc)
 import Outputable
 
 import Test.Inspection (Obligation(..), Property(..), Result(..))
-import Test.Inspection.TcPlugin (inspectionTcPlugin)
 import Test.Inspection.Core
 
 -- | The plugin. It supports the option @-fplugin-opt=Test.Inspection.Plugin:keep-going@ to
 -- ignore a failing build.
 plugin :: Plugin
-plugin = defaultPlugin { installCoreToDos = install
-                       , tcPlugin = const (Just inspectionTcPlugin)  }
+plugin = defaultPlugin { installCoreToDos = install }
 
 data UponFailure = AbortCompilation | KeepGoing deriving Eq
 

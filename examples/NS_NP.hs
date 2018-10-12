@@ -1,7 +1,6 @@
 {-# LANGUAGE GADTs, TypeFamilies, DataKinds, PolyKinds, TypeOperators #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# OPTIONS_GHC -O #-}
-{-# OPTIONS_GHC -fplugin Test.Inspection.Plugin #-}
 module NS_NP (main) where
 
 import Test.Inspection

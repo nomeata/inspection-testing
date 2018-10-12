@@ -1,5 +1,4 @@
 {-# LANGUAGE RankNTypes, DeriveGeneric, TypeApplications, DataKinds, ExistentialQuantification, TemplateHaskell #-}
-{-# OPTIONS_GHC -O -fplugin Test.Inspection.Plugin #-}
 module GenericLens (main) where
 
 import GHC.Generics

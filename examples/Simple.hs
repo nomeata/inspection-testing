@@ -1,5 +1,4 @@
 {-# LANGUAGE TemplateHaskell #-}
-{-# OPTIONS_GHC -O -fplugin Test.Inspection.Plugin #-}
 module Simple (main) where
 
 import Test.Inspection

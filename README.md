@@ -14,7 +14,6 @@ more to it than:
 
 ```haskell
 {-# LANGUAGE TemplateHaskell #-}
-{-# OPTIONS_GHC -O -fplugin Test.Inspection.Plugin #-}
 module Simple where
 
 import Test.Inspection
@@ -101,6 +100,14 @@ to pass to GHC a selection of the following flags:
 
     -dsuppress-idinfo -dsuppress-coercions -dsuppress-type-applications
     -dsuppress-module-prefixes -dsuppress-type-signatures -dsuppress-uniques
+
+
+It does not seem to do anything (on GHC < 8.4)
+----------------------------------------------
+
+Add this line to your module:
+
+    {-# OPTIONS_GHC -O -fplugin Test.Inspection.Plugin #-}
 
 Can I comment or help?
 ----------------------
