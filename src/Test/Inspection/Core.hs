@@ -53,7 +53,6 @@ slice binds v = [(v,e) | (v,e) <- binds, v `S.member` used ]
     go (Lit _ )                    = pure ()
     go (App e arg) | isTyCoArg arg = go e
     go (App e arg)                 = go e >> go arg
-    go (Lam b e) | isTyVar b       = go e
     go (Lam _ e)                   = go e
     go (Let bind body)             = mapM_ go (rhssOfBind bind) >> go body
     go (Case s _ _ alts)           = go s >> mapM_ goA alts
@@ -198,8 +197,8 @@ eqSlice it slice1 slice2
 
 -- | Returns @True@ if the given core expression mentions no type constructor
 -- anywhere that has the given name.
-freeOfType :: Slice -> Name -> Maybe (Var, CoreExpr)
-freeOfType slice tcN = allTyCons (\tc -> getName tc /= tcN) slice
+freeOfType :: Slice -> [Name] -> Maybe (Var, CoreExpr)
+freeOfType slice tcNs = allTyCons (\tc -> getName tc `notElem` tcNs) slice
 
 allTyCons :: (TyCon -> Bool) -> Slice -> Maybe (Var, CoreExpr)
 allTyCons predicate slice = listToMaybe [ (v,e) | (v,e) <- slice, not (go e) ]
@@ -235,29 +234,32 @@ allTyCons predicate slice = listToMaybe [ (v,e) | (v,e) <- slice, not (go e) ]
 --
 -- | Returns @True@ if the given core expression mentions no term variable
 -- anywhere that has the given name.
-freeOfTerm :: Slice -> Name -> Maybe (Var, CoreExpr)
-freeOfTerm slice needle = listToMaybe [ (v,e) | (v,e) <- slice, not (go e) ]
+freeOfTerm :: Slice -> [Name] -> Maybe (Var, CoreExpr)
+freeOfTerm slice needles = listToMaybe [ (v,e) | (v,e) <- slice, not (go e) ]
   where
-    goV v | Var.varName v == needle = False
-          | otherwise               = True
+    isNeedle n = n `elem` needles
+
+    goV v | isNeedle (Var.varName v)  = False
+          | Just dc <- isDataConId_maybe v
+          , isNeedle (dataConName dc) = False
+          | otherwise                 = True
 
     go (Var v)           = goV v
     go (Lit _ )          = True
     go (App e a)         = go e && go a
-    go (Lam b e)         = goV b && go e
+    go (Lam _ e)         = go e
     go (Let bind body)   = all goB (flattenBinds [bind]) && go body
-    go (Case s b _ alts) = go s && goV b && all goA alts
+    go (Case s _ _ alts) = go s && all goA alts
     go (Cast e _)        = go e
     go (Tick _ e)        = go e
     go (Type _)          = True
     go (Coercion _)      = True
 
-    goB (b, e) = goV b && go e
+    goB (_, e) = go e
 
-    goA (ac,pats, e) = goAltCon ac && all goV pats && go e
+    goA (ac, _, e) = goAltCon ac && go e
 
-    goAltCon (DataAlt dc) | dataConName dc == needle = False
-                          | otherwise                = True
+    goAltCon (DataAlt dc) | isNeedle (dataConName dc) = False
     goAltCon _ = True
 
 
@@ -273,7 +275,7 @@ doesNotAllocate slice = listToMaybe [ (v,e) | (v,e) <- slice, not (go (idArity v
   where
     go _ (Var v)
       | isDataConWorkId v, idArity v > 0 = False
-    go a (Var v)                         = (a >= idArity v)
+    go a (Var v)                         = a >= idArity v
     go _ (Lit _ )                        = True
     go a (App e arg) | isTypeArg arg     = go a e
     go a (App e arg)                     = go (a+1) e && goArg arg

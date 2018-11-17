@@ -188,7 +188,7 @@ checkProperty guts thn (NoUseOf thns) = do
     ns <- mapM fromTHName thns
     case lookupNameInGuts guts n of
         Nothing -> pure . Just $ ppr n <+> text "is not a local name"
-        Just (v, _) -> case msum $ map (freeOfTerm (slice binds v)) ns of
+        Just (v, _) -> case freeOfTerm (slice binds v) ns of
             Just _ -> pure . Just $ pprSlice (slice binds v)
             Nothing -> pure Nothing
   where binds = flattenBinds (mg_binds guts)
@@ -198,7 +198,7 @@ checkProperty guts thn (NoTypes thts) = do
     ts <- mapM fromTHName thts
     case lookupNameInGuts guts n of
         Nothing -> pure . Just $ ppr n <+> text "is not a local name"
-        Just (v, _) -> case msum $ map (freeOfType (slice binds v)) ts of
+        Just (v, _) -> case freeOfType (slice binds v) ts of
             Just _ -> pure . Just $ pprSlice (slice binds v)
             Nothing -> pure Nothing
   where binds = flattenBinds (mg_binds guts)
