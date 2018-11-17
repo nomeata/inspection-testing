@@ -1,6 +1,6 @@
 # Revision history for inspection-testing
 
-## 0.4.1 -- UNRELEASED
+## 0.4.1 -- 2018-11-17
 
 * New obligation `doesNotUse`
 * Use the Obligation’s testName in the plugin output.
