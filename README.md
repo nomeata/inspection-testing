@@ -78,7 +78,9 @@ Currently, inspection-testing supports
    programming)
  * checking the absence of a certain type (useful in the context of list or
    stream fusion)
+ * checking the absence of a a use of certian functions
  * checking the absence of allocation (generally useful)
+ * checking the absence of typeclass-overloaded code
 
 In general, the checks need to be placed in the same module as the
 checked-definition.

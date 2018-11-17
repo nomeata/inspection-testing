@@ -1,5 +1,9 @@
 # Revision history for inspection-testing
 
+## 0.4.1 -- UNRELEASED
+
+* New obligation `doesNotUse`
+
 ## 0.4 -- 2018-10-12
 
 * Support GHC-8.6

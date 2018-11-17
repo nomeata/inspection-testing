@@ -28,6 +28,7 @@ module Test.Inspection (
     -- $convenience
     (===), (==-), (=/=), hasNoType, hasNoGenerics,
     hasNoTypeClasses, hasNoTypeClassesExcept,
+    doesNotUse,
 ) where
 
 import Language.Haskell.TH
@@ -122,6 +123,9 @@ data Property
 
     -- | Does this value contain dictionaries (/except/ of the listed classes).
     | NoTypeClasses [Name]
+
+    -- | Does not contain this value (in terms or patterns)
+    | NoUseOf [Name]
     deriving Data
 
 -- | Creates an inspection obligation for the given function name
@@ -198,6 +202,14 @@ hasNoTypeClasses n = hasNoTypeClassesExcept n []
 -- @'inspect' $ fieldLens ``hasNoTypeClassesExcept`` [''Functor]@
 hasNoTypeClassesExcept :: Name -> [Name] -> Obligation
 hasNoTypeClassesExcept n tns = mkObligation n (NoTypeClasses tns)
+
+-- | Declare that a function's implementation does not use the given
+-- variable (either in terms or -- if it is a constructor -- in patterns).
+--
+-- @'inspect' $ foo ``doesNotUse`` 'error@
+doesNotUse :: Name -> Name -> Obligation
+doesNotUse n ns = mkObligation n (NoUseOf [ns])
+
 
 -- The exported TH functions
 

@@ -7,6 +7,7 @@ module Test.Inspection.Core
   , pprSliceDifference
   , eqSlice
   , freeOfType
+  , freeOfTerm
   , doesNotAllocate
   , doesNotContainTypeClasses
   ) where
@@ -23,6 +24,7 @@ import Outputable
 import PprCore
 import Coercion
 import Util
+import DataCon
 import TyCon (TyCon, isClassTyCon)
 
 import qualified Data.Set as S
@@ -230,6 +232,34 @@ allTyCons predicate slice = listToMaybe [ (v,e) | (v,e) <- slice, not (go e) ]
     goT (LitTy _)        = True
     goT (CastTy t _)     = goT t
     goT (CoercionTy _)   = True
+--
+-- | Returns @True@ if the given core expression mentions no term variable
+-- anywhere that has the given name.
+freeOfTerm :: Slice -> Name -> Maybe (Var, CoreExpr)
+freeOfTerm slice needle = listToMaybe [ (v,e) | (v,e) <- slice, not (go e) ]
+  where
+    goV v | Var.varName v == needle = False
+          | otherwise               = True
+
+    go (Var v)           = goV v
+    go (Lit _ )          = True
+    go (App e a)         = go e && go a
+    go (Lam b e)         = goV b && go e
+    go (Let bind body)   = all goB (flattenBinds [bind]) && go body
+    go (Case s b _ alts) = go s && goV b && all goA alts
+    go (Cast e _)        = go e
+    go (Tick _ e)        = go e
+    go (Type _)          = True
+    go (Coercion _)      = True
+
+    goB (b, e) = goV b && go e
+
+    goA (ac,pats, e) = goAltCon ac && all goV pats && go e
+
+    goAltCon (DataAlt dc) | dataConName dc == needle = False
+                          | otherwise                = True
+    goAltCon _ = True
+
 
 -- | True if the given variable binding does not allocate, if called fully
 -- satisfied.

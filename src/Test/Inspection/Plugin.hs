@@ -67,8 +67,9 @@ prettyProperty mod target (EqualTo n2 True)   = showTHName mod target ++ " ==- "
 prettyProperty mod target (NoTypes [t])       = showTHName mod target ++ " `hasNoType` " ++ showTHName mod t
 prettyProperty mod target (NoTypes ts)        = showTHName mod target ++ " mentions none of " ++ intercalate ", " (map (showTHName mod) ts)
 prettyProperty mod target NoAllocation        = showTHName mod target ++ " does not allocate"
-prettyProperty mod target (NoTypeClasses [])        = showTHName mod target ++ " does not contain dictionary values"
-prettyProperty mod target (NoTypeClasses ts)        = showTHName mod target ++ " does not contain dictionary values except of " ++ intercalate ", " (map (showTHName mod) ts)
+prettyProperty mod target (NoTypeClasses [])  = showTHName mod target ++ " does not contain dictionary values"
+prettyProperty mod target (NoTypeClasses ts)  = showTHName mod target ++ " does not contain dictionary values except of " ++ intercalate ", " (map (showTHName mod) ts)
+prettyProperty mod target (NoUseOf ns)        = showTHName mod target ++ " uses none of " ++ intercalate ", " (map (showTHName mod) ns)
 
 -- | Like show, but omit the module name if it is he current module
 showTHName :: Module -> TH.Name -> String
@@ -179,6 +180,16 @@ checkProperty guts thn1 (EqualTo thn2 ignore_types) = do
        -> pure . Just $ ppr n2 <+> text "is an external name"
   where
     binds = flattenBinds (mg_binds guts)
+
+checkProperty guts thn (NoUseOf thns) = do
+    n <- fromTHName thn
+    ns <- mapM fromTHName thns
+    case lookupNameInGuts guts n of
+        Nothing -> pure . Just $ ppr n <+> text "is not a local name"
+        Just (v, _) -> case msum $ map (freeOfTerm (slice binds v)) ns of
+            Just _ -> pure . Just $ pprSlice (slice binds v)
+            Nothing -> pure Nothing
+  where binds = flattenBinds (mg_binds guts)
 
 checkProperty guts thn (NoTypes thts) = do
     n <- fromTHName thn
