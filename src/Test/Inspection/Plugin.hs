@@ -57,9 +57,11 @@ findObligationAnn _
 
 prettyObligation :: Module -> Obligation -> String -> String
 prettyObligation mod (Obligation {..}) result =
-    maybe "" myPrettySrcLoc srcLoc ++ ": " ++
-    prettyProperty mod target property ++
-    " " ++ result
+    maybe "" myPrettySrcLoc srcLoc ++ ": " ++ name ++ " " ++ result
+  where
+    name = case testName of
+        Just n -> n
+        Nothing -> prettyProperty mod target property
 
 prettyProperty :: Module -> TH.Name -> Property -> String
 prettyProperty mod target (EqualTo n2 False)  = showTHName mod target ++ " === " ++ showTHName mod n2
