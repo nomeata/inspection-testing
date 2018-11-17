@@ -3,6 +3,8 @@
 ## 0.4.1 -- UNRELEASED
 
 * New obligation `doesNotUse`
+* Use the Obligation’s testName in the plugin output.
+* In `inspect`, do not override `srcLoc` if already present.
 
 ## 0.4 -- 2018-10-12
 

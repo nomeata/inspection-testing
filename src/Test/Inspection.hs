@@ -37,6 +37,7 @@ import Language.Haskell.TH.Syntax (Quasi(qNewName), liftData, addTopDecls)
 import Language.Haskell.TH.Syntax (addCorePlugin)
 #endif
 import Data.Data
+import Data.Maybe
 import GHC.Exts (lazy)
 import GHC.Generics (V1(), U1(), M1(), K1(), (:+:), (:*:), (:.:), Rec1, Par1)
 
@@ -219,8 +220,8 @@ inspectCommon annTarget obl = do
     addCorePlugin "Test.Inspection.Plugin"
 #endif
     loc <- location
-    annExpr <- liftData (obl { srcLoc = Just loc })
-    pure $ [PragmaD (AnnP annTarget annExpr)]
+    annExpr <- liftData (obl { srcLoc = Just $ fromMaybe loc $ srcLoc obl })
+    pure [PragmaD (AnnP annTarget annExpr)]
 
 -- | As seen in the example above, the entry point to inspection testing is the
 -- 'inspect' function, to which you pass an 'Obligation'.
