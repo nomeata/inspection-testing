@@ -23,8 +23,8 @@ executable test-strict
                        TextFuns
   other-extensions:    TemplateHaskell, MagicHash
   build-depends:       base >=4.11 && <4.12
-  build-depends:       inspection-testing >=0.3 && <0.4
-  build-depends:       text ==1.2.3.0
+  build-depends:       inspection-testing >=0.3 && <0.5
+  build-depends:       text ==1.2.3.1
   build-depends:       QuickCheck >=2.9 && <2.10
   build-depends:       template-haskell >=2.13 && <2.14
   build-depends:       bytestring >=0.10 && <0.11
@@ -44,14 +44,14 @@ executable test-lazy
                        LazyTextFuns
   other-extensions:    TemplateHaskell, MagicHash
   build-depends:       base >=4.11 && <4.12
-  build-depends:       inspection-testing >=0.3 && <0.4
-  build-depends:       text ==1.2.3.0
+  build-depends:       inspection-testing >=0.3 && <0.5
+  build-depends:       text ==1.2.3.1
   build-depends:       QuickCheck >=2.9 && <2.10
   build-depends:       template-haskell >=2.13 && <2.14
   build-depends:       bytestring >=0.10 && <0.11
   default-language:    Haskell2010
   -- -O2 is too slow
-  ghc-options:         -O 
+  ghc-options:         -O
 
   if flag(fast)
         CPP-Options:        -DITERATIONS=20
@@ -62,7 +62,7 @@ executable stats
                        TextFuns
                        LazyTextFuns
   build-depends:       base >=4.11 && <4.12
-  build-depends:       text ==1.2.3.0
+  build-depends:       text ==1.2.3.1
   build-depends:       template-haskell >=2.13 && <2.14
   build-depends:       bytestring >=0.10 && <0.11
   default-language:    Haskell2010

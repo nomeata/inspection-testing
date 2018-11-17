@@ -155,10 +155,10 @@ iterate       x = T.iterate succ x
 producers, transformers, consumers :: [(Name, Should, Does)]
 producers =
     [ s_d_ 'T.pack
-    , s_dn 'E.decodeUtf8
+    , sndn 'E.decodeUtf8
     , sndn 'empty
-    , snd_ 'unfoldr
-    , snd_ 'unfoldrN
+    , s_d_ 'unfoldr
+    , s_d_ 'unfoldrN
     , sndn 'T.repeat
     , sndn 'iterate
     , s_d_ 'T.singleton
@@ -172,7 +172,7 @@ transformers =
     , s_d_ 'map
     , s_d_ 'intersperse
     , sndn 'T.reverse
-    , s_dn 'T.toCaseFold
+    , s_d_ 'T.toCaseFold
     , s_d_ 'T.toLower
     , s_d_ 'T.toUpper
     , s_d_ 'T.toTitle
@@ -180,7 +180,7 @@ transformers =
     , sndn 'justifyRight
     , sndn 'center
     , s_d_ 'scanl
-    , s_dn 'scanl1
+    , sndn 'scanl1
     , sndn 'scanr
     , sndn 'scanr1
     , sndn 'replicate
@@ -193,9 +193,9 @@ transformers =
     , sndn 'takeWhileEnd
     , s_d_ 'dropWhile
     , sndn 'dropWhileEnd
-    , s_dn 'dropAround
-    , s_dn 'T.strip
-    , s_dn 'T.stripStart
+    , sndn 'dropAround
+    , sndn 'T.strip
+    , s_d_ 'T.stripStart
     , sndn 'T.stripEnd
     , s_d_ 'filter
     ]
@@ -216,8 +216,8 @@ consumers =
     , s_d_ 'all
     , s_d_ 'T.maximum
     , s_d_ 'T.minimum
-    , snd_ 'find
-    , snd_ 'index
+    , s_d_ 'find
+    , s_d_ 'index
     -- , s_d_ 'findIndex
     , s_d_ 'isPrefixOf
     , sndn 'isSuffixOf

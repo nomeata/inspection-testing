@@ -25,6 +25,7 @@ import ShouldDoes
 untestable :: [Name]
 untestable =
   [ 'T.uncons -- supposed to fuse
+  , 'T.reverse -- supposed to with argument only
   , 'T.intercalate
   , 'T.replace
   , 'T.concat
@@ -153,7 +154,7 @@ producers =
     , sndn 'empty
     , s_d_ 'unfoldr
     , s_d_ 'unfoldrN
-    , s_dn 'T.unpackCString#
+    , sndn 'T.unpackCString#
     , sndn 'T.copy
     ]
 transformers =
@@ -164,7 +165,6 @@ transformers =
     , s_d_ 'T.init
     , s_d_ 'map
     , s_d_ 'intersperse
-    , s_dn 'T.reverse
     , s_d_ 'T.toCaseFold
     , s_d_ 'T.toLower
     , s_d_ 'T.toUpper
@@ -173,22 +173,22 @@ transformers =
     , sndn 'justifyRight
     , sndn 'center
     , s_d_ 'scanl
-    , s_dn 'scanl1
+    , sndn 'scanl1
     , sndn 'scanr
-    , s_dn 'scanr1
+    , sndn 'scanr1
     , sndn 'replicate
     , s_d_ 'take
     , sndn 'takeEnd
     , s_d_ 'drop
     , sndn 'dropEnd
     , s_d_ 'takeWhile
-    , s_dn 'takeWhileEnd
+    , sndn 'takeWhileEnd
     , s_d_ 'dropWhile
-    , s_dn 'dropWhileEnd
-    , s_dn 'dropAround
-    , s_dn 'T.strip
-    , s_dn 'T.stripStart
-    , s_dn 'T.stripEnd
+    , sndn 'dropWhileEnd
+    , sndn 'dropAround
+    , sndn 'T.strip
+    , s_d_ 'T.stripStart
+    , sndn 'T.stripEnd
     , s_d_ 'filter
     ]
 consumers =
@@ -196,7 +196,7 @@ consumers =
     , s_d_ 'T.head
     , s_d_ 'T.last
     , s_d_ 'T.null
-    , s_dn 'T.length
+    , s_d_ 'T.length
     , s_d_ 'compareLength
     , s_d_ 'foldl
     , s_d_ 'foldl'
@@ -208,8 +208,8 @@ consumers =
     , s_d_ 'all
     , s_d_ 'T.maximum
     , s_d_ 'T.minimum
-    , snd_ 'find
-    , snd_ 'index
+    , s_d_ 'find
+    , s_d_ 'index
     , s_d_ 'findIndex
     , s_d_ 'isPrefixOf
     , sndn 'isSuffixOf

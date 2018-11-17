@@ -90,7 +90,7 @@ defineTests = do
         Just n <- lookupValueName (funName pipeline)
         inspectTest (mkObligation n (NoTypes [''T.Text, ''LT.Text]))
 
-    tests' = flip map tests $ \(f,pipelines,s,d) -> do
+    tests' = flip map tests $ \(f,pipelines,s,d) ->
         tupE [ stringE (nameBase f)
              , listE $ flip map pipelines $ \pipeline -> tupE
                   [ stringE $ intercalate "." (map nameBase pipeline)
