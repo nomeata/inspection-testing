@@ -22,21 +22,27 @@ import Outputable
 import Test.Inspection (Obligation(..), Property(..), Result(..))
 import Test.Inspection.Core
 
--- | The plugin. It supports the option @-fplugin-opt=Test.Inspection.Plugin:keep-going@ to
--- ignore a failing build.
+-- | The plugin. It supports some options:
+--
+-- * @-fplugin-opt=Test.Inspection.Plugin:keep-going@ to ignore a failing build
+-- * @-fplugin-opt=Test.Inspection.Plugin:quiet@ to not print fulfilled obligations
 plugin :: Plugin
 plugin = defaultPlugin { installCoreToDos = install }
 
 data UponFailure = AbortCompilation | KeepGoing deriving Eq
+
+data ReportingMode = Verbose | Quiet deriving Eq
 
 data ResultTarget = PrintAndAbort | StoreAt Name
 
 install :: [CommandLineOption] -> [CoreToDo] -> CoreM [CoreToDo]
 install args passes = return $ passes ++ [pass]
   where
-    pass = CoreDoPluginPass "Test.Inspection.Plugin" (proofPass upon_failure)
+    pass = CoreDoPluginPass "Test.Inspection.Plugin" (proofPass upon_failure report)
     upon_failure | "keep-going" `elem` args = KeepGoing
                  | otherwise                = AbortCompilation
+    report | "quiet" `elem` args = Quiet
+           | otherwise           = Verbose
 
 
 extractObligations :: ModGuts -> (ModGuts, [(ResultTarget, Obligation)])
@@ -90,8 +96,8 @@ type Updates = [(Name, Result)]
 tick :: Stat -> Stats
 tick s = M.singleton s 1
 
-checkObligation :: ModGuts -> (ResultTarget, Obligation) -> CoreM (Updates, Stats)
-checkObligation guts (reportTarget, obl) = do
+checkObligation :: ReportingMode -> ModGuts -> (ResultTarget, Obligation) -> CoreM (Updates, Stats)
+checkObligation report guts (reportTarget, obl) = do
 
     res <- checkProperty guts (target obl) (property obl)
     case reportTarget of
@@ -99,7 +105,8 @@ checkObligation guts (reportTarget, obl) = do
             category <- case (res, expectFail obl) of
                 -- Property holds
                 (Nothing, False) -> do
-                    putMsgS $ prettyObligation (mg_module guts) obl expSuccess
+                    unless (report == Quiet) $
+                        putMsgS $ prettyObligation (mg_module guts) obl expSuccess
                     return ExpSuccess
                 (Nothing, True) -> do
                     putMsgS $ prettyObligation (mg_module guts) obl unexpSuccess
@@ -110,7 +117,8 @@ checkObligation guts (reportTarget, obl) = do
                     putMsg $ reportDoc
                     return UnexpFailure
                 (Just _, True) -> do
-                    putMsgS $ prettyObligation (mg_module guts) obl expFailure
+                    unless (report == Quiet) $
+                        putMsgS $ prettyObligation (mg_module guts) obl expFailure
                     return ExpFailure
             return ([], tick category)
         StoreAt name -> do
@@ -221,7 +229,7 @@ checkProperty guts thn (NoTypeClasses thts) = do
             Just (v',e') -> pure . Just $ nest 4 (ppr v' <+> text "=" <+> ppr e')
             Nothing -> pure Nothing
   where binds = flattenBinds (mg_binds guts)
-    
+
 
 fromTHName :: TH.Name -> CoreM Name
 fromTHName thn = thNameToGhcName thn >>= \case
@@ -248,15 +256,15 @@ resultToExpr :: Result -> CoreM CoreExpr
 resultToExpr (Success s) = App <$> dcExpr 'Success <*> mkStringExpr s
 resultToExpr (Failure s) = App <$> dcExpr 'Failure <*> mkStringExpr s
 
-proofPass :: UponFailure -> ModGuts -> CoreM ModGuts
-proofPass upon_failure guts = do
+proofPass :: UponFailure -> ReportingMode -> ModGuts -> CoreM ModGuts
+proofPass upon_failure report guts = do
     dflags <- getDynFlags
     when (optLevel dflags < 1) $
         warnMsg $ fsep $ map text $ words "Test.Inspection: Compilation without -O detected. Expect optimizations to fail."
 
     let (guts', obligations) = extractObligations guts
     (toStore, stats) <- (concat `bimap` M.unionsWith (+)) . unzip <$>
-        mapM (checkObligation guts') obligations
+        mapM (checkObligation report guts') obligations
     let n = sum stats :: Int
 
     guts'' <- storeResults toStore  guts'
@@ -271,7 +279,8 @@ proofPass upon_failure guts = do
     -- Only print a message if there are some compile-time results to report
     unless (q StoredResult == n) $ do
         if q ExpSuccess + q ExpFailure + q StoredResult == n
-        then putMsg $ text "inspection testing successful" $$ summary_message
+        then unless (report == Quiet) $
+                putMsg $ text "inspection testing successful" $$ summary_message
         else case upon_failure of
             AbortCompilation -> do
                 errorMsg $ text "inspection testing unsuccessful" $$ summary_message
