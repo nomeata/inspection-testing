@@ -25,7 +25,7 @@ import Test.Inspection.Core
 -- | The plugin. It supports some options:
 --
 -- * @-fplugin-opt=Test.Inspection.Plugin:keep-going@ to ignore a failing build
--- * @-fplugin-opt=Test.Inspection.Plugin:quiet@ to not print fulfilled obligations
+-- * @-fplugin-opt=Test.Inspection.Plugin:quiet@ to be silent if all obligations are fulfilled
 plugin :: Plugin
 plugin = defaultPlugin { installCoreToDos = install }
 
