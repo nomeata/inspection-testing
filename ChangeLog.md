@@ -1,5 +1,9 @@
 # Revision history for inspection-testing
 
+## 0.4.1.2 -- 2019-02-23
+
+* Do not force recompilation with GHC >= 8.6
+
 ## 0.4.1.1 -- 2018-11-17
 
 * Fix a bug with `doesNotUse` and data constructors

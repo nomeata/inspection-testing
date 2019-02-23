@@ -27,7 +27,12 @@ import Test.Inspection.Core
 -- * @-fplugin-opt=Test.Inspection.Plugin:keep-going@ to ignore a failing build
 -- * @-fplugin-opt=Test.Inspection.Plugin:quiet@ to be silent if all obligations are fulfilled
 plugin :: Plugin
-plugin = defaultPlugin { installCoreToDos = install }
+plugin = defaultPlugin
+    { installCoreToDos = install
+#if __GLASGOW_HASKELL__ >= 806
+    , pluginRecompile = \_args -> pure NoForceRecompile
+#endif
+    }
 
 data UponFailure = AbortCompilation | KeepGoing deriving Eq
 
