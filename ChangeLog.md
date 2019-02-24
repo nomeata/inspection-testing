@@ -3,6 +3,7 @@
 ## 0.4.1.2 -- 2019-02-23
 
 * Do not force recompilation with GHC >= 8.6
+* Support `-fplugin-opt=Test.Inspection.Plugin:quiet`
 
 ## 0.4.1.1 -- 2018-11-17
 
