@@ -25,6 +25,7 @@ import Test.Inspection.Core
 -- | The plugin. It supports some options:
 --
 -- * @-fplugin-opt=Test.Inspection.Plugin:keep-going@ to ignore a failing build
+-- * @-fplugin-opt=Test.Inspection.Plugin:keep-going-O0@ to ignore a failing build when optimisations are off
 -- * @-fplugin-opt=Test.Inspection.Plugin:quiet@ to be silent if all obligations are fulfilled
 plugin :: Plugin
 plugin = defaultPlugin
@@ -34,7 +35,7 @@ plugin = defaultPlugin
 #endif
     }
 
-data UponFailure = AbortCompilation | KeepGoing deriving Eq
+data UponFailure = AbortCompilation | KeepGoingO0 | KeepGoing deriving Eq
 
 data ReportingMode = Verbose | Quiet deriving Eq
 
@@ -44,11 +45,11 @@ install :: [CommandLineOption] -> [CoreToDo] -> CoreM [CoreToDo]
 install args passes = return $ passes ++ [pass]
   where
     pass = CoreDoPluginPass "Test.Inspection.Plugin" (proofPass upon_failure report)
-    upon_failure | "keep-going" `elem` args = KeepGoing
-                 | otherwise                = AbortCompilation
+    upon_failure | "keep-going" `elem` args    = KeepGoing
+                 | "keep-going-O0" `elem` args = KeepGoingO0
+                 | otherwise                   = AbortCompilation
     report | "quiet" `elem` args = Quiet
            | otherwise           = Verbose
-
 
 extractObligations :: ModGuts -> (ModGuts, [(ResultTarget, Obligation)])
 extractObligations guts = (guts', obligations)
@@ -264,7 +265,8 @@ resultToExpr (Failure s) = App <$> dcExpr 'Failure <*> mkStringExpr s
 proofPass :: UponFailure -> ReportingMode -> ModGuts -> CoreM ModGuts
 proofPass upon_failure report guts = do
     dflags <- getDynFlags
-    when (optLevel dflags < 1) $
+    let noopt = optLevel dflags < 1
+    when noopt $
         warnMsg $ fsep $ map text $ words "Test.Inspection: Compilation without -O detected. Expect optimizations to fail."
 
     let (guts', obligations) = extractObligations guts
@@ -286,12 +288,12 @@ proofPass upon_failure report guts = do
         if q ExpSuccess + q ExpFailure + q StoredResult == n
         then unless (report == Quiet) $
                 putMsg $ text "inspection testing successful" $$ summary_message
-        else case upon_failure of
-            AbortCompilation -> do
-                errorMsg $ text "inspection testing unsuccessful" $$ summary_message
-                liftIO $ exitFailure -- kill the compiler. Is there a nicer way?
-            KeepGoing -> do
-                warnMsg $ text "inspection testing unsuccessful" $$ summary_message
+        else do
+            errorMsg $ text "inspection testing unsuccessful" $$ summary_message
+            case upon_failure of
+                KeepGoing           -> return ()
+                KeepGoingO0 | noopt -> return ()
+                _                   -> liftIO $ exitFailure -- kill the compiler. Is there a nicer way?
 
     return guts''
 
