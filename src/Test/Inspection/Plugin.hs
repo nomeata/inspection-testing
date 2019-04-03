@@ -25,6 +25,7 @@ import Test.Inspection.Core
 -- | The plugin. It supports some options:
 --
 -- * @-fplugin-opt=Test.Inspection.Plugin:keep-going@ to ignore a failing build
+-- * @-fplugin-opt=Test.Inspection.Plugin:keep-going-O0@ to ignore a failing build when optimisations are off
 -- * @-fplugin-opt=Test.Inspection.Plugin:quiet@ to be silent if all obligations are fulfilled
 plugin :: Plugin
 plugin = defaultPlugin
@@ -34,7 +35,7 @@ plugin = defaultPlugin
 #endif
     }
 
-data UponFailure = AbortCompilation | KeepGoing deriving Eq
+data UponFailure = AbortCompilation | KeepGoingO0 | KeepGoing deriving Eq
 
 data ReportingMode = Verbose | Quiet deriving Eq
 
@@ -44,11 +45,11 @@ install :: [CommandLineOption] -> [CoreToDo] -> CoreM [CoreToDo]
 install args passes = return $ passes ++ [pass]
   where
     pass = CoreDoPluginPass "Test.Inspection.Plugin" (proofPass upon_failure report)
-    upon_failure | "keep-going" `elem` args = KeepGoing
-                 | otherwise                = AbortCompilation
+    upon_failure | "keep-going" `elem` args    = KeepGoing
+                 | "keep-going-O0" `elem` args = KeepGoingO0
+                 | otherwise                   = AbortCompilation
     report | "quiet" `elem` args = Quiet
            | otherwise           = Verbose
-
 
 extractObligations :: ModGuts -> (ModGuts, [(ResultTarget, Obligation)])
 extractObligations guts = (guts', obligations)
@@ -83,6 +84,7 @@ prettyProperty mod target NoAllocation        = showTHName mod target ++ " does 
 prettyProperty mod target (NoTypeClasses [])  = showTHName mod target ++ " does not contain dictionary values"
 prettyProperty mod target (NoTypeClasses ts)  = showTHName mod target ++ " does not contain dictionary values except of " ++ intercalate ", " (map (showTHName mod) ts)
 prettyProperty mod target (NoUseOf ns)        = showTHName mod target ++ " uses none of " ++ intercalate ", " (map (showTHName mod) ns)
+prettyProperty mod target CoreOf              = showTHName mod target ++ " core dump" -- :)
 
 -- | Like show, but omit the module name if it is he current module
 showTHName :: Module -> TH.Name -> String
@@ -109,19 +111,29 @@ checkObligation report guts (reportTarget, obl) = do
         PrintAndAbort -> do
             category <- case (res, expectFail obl) of
                 -- Property holds
-                (Nothing, False) -> do
+                (ResSuccess, False) -> do
                     unless (report == Quiet) $
                         putMsgS $ prettyObligation (mg_module guts) obl expSuccess
                     return ExpSuccess
-                (Nothing, True) -> do
+                (ResSuccess, True) -> do
                     putMsgS $ prettyObligation (mg_module guts) obl unexpSuccess
                     return UnexpSuccess
+                -- Property holds, with extra message
+                (ResSuccessWithMessage reportDoc, False) -> do
+                    unless (report == Quiet) $ do
+                        putMsgS $ prettyObligation (mg_module guts) obl expSuccess
+                        putMsg reportDoc
+                    return ExpSuccess
+                (ResSuccessWithMessage reportDoc, True) -> do
+                    putMsgS $ prettyObligation (mg_module guts) obl unexpSuccess
+                    putMsg reportDoc
+                    return UnexpSuccess
                 -- Property does not hold
-                (Just reportDoc, False) -> do
+                (ResFailure reportDoc, False) -> do
                     putMsgS $ prettyObligation (mg_module guts) obl unexpFailure
                     putMsg $ reportDoc
                     return UnexpFailure
-                (Just _, True) -> do
+                (ResFailure _, True) -> do
                     unless (report == Quiet) $
                         putMsgS $ prettyObligation (mg_module guts) obl expFailure
                     return ExpFailure
@@ -129,9 +141,12 @@ checkObligation report guts (reportTarget, obl) = do
         StoreAt name -> do
             dflags <- getDynFlags
             let result = case res of
-                    Nothing -> Success $ showSDoc dflags $
+                    ResSuccess -> Success $ showSDoc dflags $
                         text (prettyObligation (mg_module guts) obl expSuccess)
-                    Just reportMsg -> Failure $ showSDoc dflags $
+                    ResSuccessWithMessage msg -> Success $ showSDoc dflags $
+                        text (prettyObligation (mg_module guts) obl expSuccess) $$
+                        msg
+                    ResFailure reportMsg -> Failure $ showSDoc dflags $
                         text (prettyObligation (mg_module guts) obl unexpFailure) $$
                         reportMsg
             pure ([(name, result)], tick StoredResult)
@@ -143,7 +158,10 @@ checkObligation report guts (reportTarget, obl) = do
     expFailure   = "failed expectedly."
 
 
-type CheckResult = Maybe SDoc
+data CheckResult
+    = ResSuccess
+    | ResSuccessWithMessage SDoc
+    | ResFailure SDoc
 
 lookupNameInGuts :: ModGuts -> Name -> Maybe (Var, CoreExpr)
 lookupNameInGuts guts n = listToMaybe
@@ -169,30 +187,30 @@ checkProperty guts thn1 (EqualTo thn2 ignore_types) = do
     let p2 = lookupNameInGuts guts n2
 
     if | n1 == n2
-       -> return Nothing
+       -> pure ResSuccess
        -- Ok if one points to another
        | Just (_, Var other) <- p1, getName other == n2
-       -> return Nothing
+       -> pure ResSuccess
        | Just (_, Var other) <- p2, getName other == n1
-       -> return Nothing
+       -> pure ResSuccess
        | Just (v1, _) <- p1
        , Just (v2, _) <- p2
        , let slice1 = slice binds v1
        , let slice2 = slice binds v2
        -> if eqSlice ignore_types slice1 slice2
           -- OK if they have the same expression
-          then return Nothing
+          then pure ResSuccess
           -- Not ok if the expression differ
-          else pure . Just $ pprSliceDifference slice1 slice2
+          else pure . ResFailure $ pprSliceDifference slice1 slice2
        -- Not ok if both names are bound externally
        | Nothing <- p1
        , Nothing <- p2
-       -> pure . Just $ ppr n1 <+> text " and " <+> ppr n2 <+>
+       -> pure . ResFailure $ ppr n1 <+> text " and " <+> ppr n2 <+>
                 text "are different external names"
        | Nothing <- p1
-       -> pure . Just $ ppr n1 <+> text "is an external name"
+       -> pure . ResFailure $ ppr n1 <+> text "is an external name"
        | Nothing <- p2
-       -> pure . Just $ ppr n2 <+> text "is an external name"
+       -> pure . ResFailure $ ppr n2 <+> text "is an external name"
   where
     binds = flattenBinds (mg_binds guts)
 
@@ -200,41 +218,49 @@ checkProperty guts thn (NoUseOf thns) = do
     n <- fromTHName thn
     ns <- mapM fromTHName thns
     case lookupNameInGuts guts n of
-        Nothing -> pure . Just $ ppr n <+> text "is not a local name"
+        Nothing -> pure . ResFailure $ ppr n <+> text "is not a local name"
         Just (v, _) -> case freeOfTerm (slice binds v) ns of
-            Just _ -> pure . Just $ pprSlice (slice binds v)
-            Nothing -> pure Nothing
+            Just _ -> pure . ResFailure $ pprSlice (slice binds v)
+            Nothing -> pure ResSuccess
   where binds = flattenBinds (mg_binds guts)
 
 checkProperty guts thn (NoTypes thts) = do
     n <- fromTHName thn
     ts <- mapM fromTHName thts
     case lookupNameInGuts guts n of
-        Nothing -> pure . Just $ ppr n <+> text "is not a local name"
+        Nothing -> pure . ResFailure $ ppr n <+> text "is not a local name"
         Just (v, _) -> case freeOfType (slice binds v) ts of
-            Just _ -> pure . Just $ pprSlice (slice binds v)
-            Nothing -> pure Nothing
+            Just _ -> pure . ResFailure $ pprSlice (slice binds v)
+            Nothing -> pure ResSuccess
   where binds = flattenBinds (mg_binds guts)
 
 checkProperty guts thn NoAllocation = do
     n <- fromTHName thn
     case lookupNameInGuts guts n of
-        Nothing -> pure . Just $ ppr n <+> text "is not a local name"
+        Nothing -> pure . ResFailure $ ppr n <+> text "is not a local name"
         Just (v, _) -> case doesNotAllocate (slice binds v) of
-            Just (v',e') -> pure . Just $ nest 4 (ppr v' <+> text "=" <+> ppr e')
-            Nothing -> pure Nothing
+            Just (v',e') -> pure . ResFailure $ nest 4 (ppr v' <+> text "=" <+> ppr e')
+            Nothing -> pure ResSuccess
   where binds = flattenBinds (mg_binds guts)
 
 checkProperty guts thn (NoTypeClasses thts) = do
     n <- fromTHName thn
     ts <- mapM fromTHName thts
     case lookupNameInGuts guts n of
-        Nothing -> pure . Just $ ppr n <+> text "is not a local name"
+        Nothing -> pure . ResFailure $ ppr n <+> text "is not a local name"
         Just (v, _) -> case doesNotContainTypeClasses (slice binds v) ts of
-            Just (v',e') -> pure . Just $ nest 4 (ppr v' <+> text "=" <+> ppr e')
-            Nothing -> pure Nothing
+            Just (v',e') -> pure . ResFailure $ nest 4 (ppr v' <+> text "=" <+> ppr e')
+            Nothing -> pure ResSuccess
   where binds = flattenBinds (mg_binds guts)
 
+checkProperty guts thn CoreOf = do
+    n <- fromTHName thn
+    case lookupNameInGuts guts n of
+        Nothing -> pure . ResFailure $ ppr n <+> text "is not a local name"
+        Just (v, _) -> do
+            let s = slice binds v
+            pure $ ResSuccessWithMessage $ nest 4 $ pprSlice s
+  where binds = flattenBinds (mg_binds guts)
 
 fromTHName :: TH.Name -> CoreM Name
 fromTHName thn = thNameToGhcName thn >>= \case
@@ -264,7 +290,8 @@ resultToExpr (Failure s) = App <$> dcExpr 'Failure <*> mkStringExpr s
 proofPass :: UponFailure -> ReportingMode -> ModGuts -> CoreM ModGuts
 proofPass upon_failure report guts = do
     dflags <- getDynFlags
-    when (optLevel dflags < 1) $
+    let noopt = optLevel dflags < 1
+    when noopt $
         warnMsg $ fsep $ map text $ words "Test.Inspection: Compilation without -O detected. Expect optimizations to fail."
 
     let (guts', obligations) = extractObligations guts
@@ -286,12 +313,12 @@ proofPass upon_failure report guts = do
         if q ExpSuccess + q ExpFailure + q StoredResult == n
         then unless (report == Quiet) $
                 putMsg $ text "inspection testing successful" $$ summary_message
-        else case upon_failure of
-            AbortCompilation -> do
-                errorMsg $ text "inspection testing unsuccessful" $$ summary_message
-                liftIO $ exitFailure -- kill the compiler. Is there a nicer way?
-            KeepGoing -> do
-                warnMsg $ text "inspection testing unsuccessful" $$ summary_message
+        else do
+            errorMsg $ text "inspection testing unsuccessful" $$ summary_message
+            case upon_failure of
+                KeepGoing           -> return ()
+                KeepGoingO0 | noopt -> return ()
+                _                   -> liftIO $ exitFailure -- kill the compiler. Is there a nicer way?
 
     return guts''
 
