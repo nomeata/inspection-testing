@@ -28,7 +28,7 @@ module Test.Inspection (
     -- $convenience
     (===), (==-), (=/=), hasNoType, hasNoGenerics,
     hasNoTypeClasses, hasNoTypeClassesExcept,
-    doesNotUse,
+    doesNotUse, coreOf,
 ) where
 
 import Language.Haskell.TH
@@ -127,6 +127,9 @@ data Property
 
     -- | Does not contain this value (in terms or patterns)
     | NoUseOf [Name]
+
+    -- | Always satisfied, but dumps the value in non-quiet mode.
+    | CoreOf
     deriving Data
 
 -- | Creates an inspection obligation for the given function name
@@ -211,6 +214,14 @@ hasNoTypeClassesExcept n tns = mkObligation n (NoTypeClasses tns)
 doesNotUse :: Name -> Name -> Obligation
 doesNotUse n ns = mkObligation n (NoUseOf [ns])
 
+-- | Dump the Core of the value.
+--
+-- @'inspect' $ 'coreOf' 'foo@
+--
+-- This is useful when you need to inspect some values manually.
+--
+coreOf :: Name -> Obligation
+coreOf n = mkObligation n CoreOf
 
 -- The exported TH functions
 
