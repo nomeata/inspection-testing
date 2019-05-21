@@ -30,7 +30,6 @@ import TyCon (TyCon, isClassTyCon)
 import qualified Data.Set as S
 import Control.Monad.State.Strict
 import Control.Monad.Trans.Maybe
-import Data.List (permutations)
 import Data.Maybe
 
 type Slice = [(Var, CoreExpr)]
@@ -89,6 +88,26 @@ withLessDetail sdoc = withPprStyle defaultUserStyle sdoc
 type VarPair = (Var, Var)
 type VarPairSet = S.Set VarPair
 
+-- | Is there some ordering of the two lists which makes the equality function
+-- equal at every point?
+allEqual :: (a -> a -> Bool) -> [a] -> [a] -> Bool
+allEqual eq as bs
+  | length as /= length bs = False
+  | otherwise = evalState (go as) bs
+  where
+    go [] = gets null
+    go (a : as) = do
+      modify $ removeMatching (eq a)
+      go as
+
+-- | Remove the first element in the list matching the predicate.
+removeMatching :: (a -> Bool) -> [a] -> [a]
+removeMatching _ [] = []
+removeMatching f (a : as)
+  | f a = as
+  | otherwise = a : removeMatching f as
+
+
 -- | This is a heuristic, which only works if both slices
 -- have auxiliary variables in the right order.
 -- (This is mostly to work-around the buggy CSE in GHC-8.0)
@@ -97,9 +116,7 @@ eqSlice :: Bool {- ^ ignore types -} -> Slice -> Slice -> Bool
 eqSlice _ slice1 slice2 | null slice1 || null slice2 = null slice1 == null slice2
   -- Mostly defensive programming (slices should not be empty)
 eqSlice it slice1 slice2
-  = flip any (permutations slice1) $ \slice1p ->
-      flip all (zip slice1p slice2) $ \(b1, b2) ->
-        step (S.singleton (fst b1, fst b2)) S.empty
+  = allEqual (\b1 b2 -> step (S.singleton (fst b1, fst b2)) S.empty) slice1 slice2
   where
     step :: VarPairSet -> VarPairSet -> Bool
     step wanted done
