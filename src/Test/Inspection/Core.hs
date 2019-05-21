@@ -30,6 +30,7 @@ import TyCon (TyCon, isClassTyCon)
 import qualified Data.Set as S
 import Control.Monad.State.Strict
 import Control.Monad.Trans.Maybe
+import Data.List (permutations)
 import Data.Maybe
 
 type Slice = [(Var, CoreExpr)]
@@ -96,7 +97,9 @@ eqSlice :: Bool {- ^ ignore types -} -> Slice -> Slice -> Bool
 eqSlice _ slice1 slice2 | null slice1 || null slice2 = null slice1 == null slice2
   -- Mostly defensive programming (slices should not be empty)
 eqSlice it slice1 slice2
-  = step (S.singleton (fst (last slice1), fst (last slice2))) S.empty
+  = flip any (permutations slice1) $ \slice1p ->
+      flip all (zip slice1p slice2) $ \(b1, b2) ->
+        step (S.singleton (fst b1, fst b2)) S.empty
   where
     step :: VarPairSet -> VarPairSet -> Bool
     step wanted done

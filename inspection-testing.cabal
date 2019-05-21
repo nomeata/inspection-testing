@@ -164,3 +164,12 @@ test-suite generic-lens
   ghc-options:         -main-is GenericLens
   if impl(ghc < 8.4)
       ghc-options:       -fplugin=Test.Inspection.Plugin
+
+test-suite mutual-recursion
+   type:                exitcode-stdio-1.0
+   hs-source-dirs:      examples
+   main-is:             MutualRecursion.hs
+   build-depends:       inspection-testing
+   build-depends:       base >=4.9 && <4.13
+   default-language:    Haskell2010
+   ghc-options:         -main-is MutualRecursion
