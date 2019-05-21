@@ -97,15 +97,19 @@ allEqual eq as bs
   where
     go [] = gets null
     go (a : as) = do
-      modify $ removeMatching (eq a)
-      go as
+      bs' <- get
+      case removeMatching (eq a) bs' of
+        Just bs'' -> do
+          put bs''
+          go as
+        Nothing -> pure False
 
 -- | Remove the first element in the list matching the predicate.
-removeMatching :: (a -> Bool) -> [a] -> [a]
-removeMatching _ [] = []
+removeMatching :: (a -> Bool) -> [a] -> Maybe [a]
+removeMatching _ [] = Nothing
 removeMatching f (a : as)
-  | f a = as
-  | otherwise = a : removeMatching f as
+  | f a = Just as
+  | otherwise = (a :) <$> removeMatching f as
 
 
 -- | This is a heuristic, which only works if both slices
