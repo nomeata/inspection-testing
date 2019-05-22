@@ -61,6 +61,9 @@ something_else =
       go2 = 'c' : go0
    in go0
 
+inspect $ 'letrec =/= 'something_else
+
+
 
 -- | Test to make sure we don't have any aggressively worst-case behavior.
 bigletrec =
@@ -841,19 +844,10 @@ badletrec' =
       go256 = '\x256' : go0
   in go0
 
+inspect $ 'bigletrec === 'bigletrec'
+inspect $ 'bigletrec =/= 'badletrec'
 
-isSuccess :: Result -> Bool
-isSuccess (Success _) = True
-isSuccess (Failure _) = False
-
-results :: [Result]
-results =
-  [ $(inspectTest $ 'letrec === 'something_else)
-  , $(inspectTest $ 'bigletrec === 'badletrec')
-  ]
 
 main :: IO ()
-main = do
-  if fmap isSuccess results == [False, False]
-     then exitSuccess
-     else exitFailure
+main = pure ()
+
