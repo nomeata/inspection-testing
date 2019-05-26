@@ -34,9 +34,13 @@ import Data.Maybe
 
 type Slice = [(Var, CoreExpr)]
 
--- | Selects those bindings that define the given variable
+-- | Selects those bindings that define the given variable (with this variable first)
 slice :: [(Var, CoreExpr)] -> Var -> Slice
-slice binds v = [(v,e) | (v,e) <- binds, v `S.member` used ]
+slice binds v
+    | Just e <- lookup v binds
+    = (v,e) : [(v',e) | (v',e) <- binds, v' /= v, v' `S.member` used ]
+    | otherwise
+    = error "slice: cannot find given variable in bindings"
   where
     used = execState (goV v) S.empty
 
@@ -65,7 +69,8 @@ slice binds v = [(v,e) | (v,e) <- binds, v `S.member` used ]
 
 -- | Pretty-print a slice
 pprSlice :: Slice -> SDoc
-pprSlice slice = withLessDetail $ pprCoreBindings [ NonRec v e  | (v,e) <- slice ]
+pprSlice slice =
+    withLessDetail $ pprCoreBindings [ NonRec v e  | (v,e) <- slice ]
 
 -- | Pretty-print two slices, after removing variables occurring in both
 pprSliceDifference :: Slice -> Slice -> SDoc
@@ -96,7 +101,7 @@ eqSlice :: Bool {- ^ ignore types -} -> Slice -> Slice -> Bool
 eqSlice _ slice1 slice2 | null slice1 || null slice2 = null slice1 == null slice2
   -- Mostly defensive programming (slices should not be empty)
 eqSlice it slice1 slice2
-  = step (S.singleton (fst (last slice1), fst (last slice2))) S.empty
+  = step (S.singleton (fst (head slice1), fst (head slice2))) S.empty
   where
     step :: VarPairSet -> VarPairSet -> Bool
     step wanted done
