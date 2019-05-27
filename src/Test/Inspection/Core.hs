@@ -119,11 +119,11 @@ eqSlice it slice1 slice2
         | it
         , Just e1 <- lookup x slice1
         , Just x' <- essentiallyVar e1
-        = equated x' y
+        = lift $ modify (S.insert (x',y))
         | it
         , Just e2 <- lookup y slice2
         , Just y' <- essentiallyVar e2
-        = equated x y'
+        = lift $ modify (S.insert (x,y'))
         | Just e1 <- lookup x slice1
         , Just e2 <- lookup y slice2
         = go (mkRnEnv2 emptyInScopeSet) e1 e2
