@@ -1,6 +1,6 @@
 # Revision history for inspection-testing
 
-## 0.4.1.3 -- 2019-06-05
+## 0.4.2 -- 2019-06-05
 
 * Be less picky if mutually recursive definitions appear in a different order
   in the source
