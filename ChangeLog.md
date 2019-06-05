@@ -1,5 +1,13 @@
 # Revision history for inspection-testing
 
+## 0.4.1.3 -- 2019-06-05
+
+* Be less picky if mutually recursive definitions appear in a different order
+  in the source
+* Add obligation `coreOf`, which succeeds, but lets you dump the core of a
+  single symbol (thanks to @phadej)
+* Support `-fplugin-opt=Test.Inspection.Plugin:keep-going-O0` (thanks to @phadej)
+
 ## 0.4.1.2 -- 2019-02-23
 
 * Do not force recompilation with GHC >= 8.6
