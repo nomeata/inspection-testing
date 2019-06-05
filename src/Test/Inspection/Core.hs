@@ -116,12 +116,10 @@ eqSlice it slice1 slice2
 
     equate :: Var -> Var -> MaybeT (State VarPairSet) ()
     equate x y
-        | it
-        , Just e1 <- lookup x slice1
+        | Just e1 <- lookup x slice1
         , Just x' <- essentiallyVar e1
         = lift $ modify (S.insert (x',y))
-        | it
-        , Just e2 <- lookup y slice2
+        | Just e2 <- lookup y slice2
         , Just y' <- essentiallyVar e2
         = lift $ modify (S.insert (x,y'))
         | Just e1 <- lookup x slice1
@@ -134,11 +132,11 @@ eqSlice it slice1 slice2
     equated x y = lift $ modify (S.insert (x,y))
 
     essentiallyVar :: CoreExpr -> Maybe Var
-    essentiallyVar (App e a) | isTyCoArg a = essentiallyVar e
-    essentiallyVar (Lam v e) | isTyCoVar v = essentiallyVar e
-    essentiallyVar (Cast e _)              = essentiallyVar e
-    essentiallyVar (Var v)                 = Just v
-    essentiallyVar _                       = Nothing
+    essentiallyVar (App e a)  | it, isTyCoArg a = essentiallyVar e
+    essentiallyVar (Lam v e)  | it, isTyCoVar v = essentiallyVar e
+    essentiallyVar (Cast e _) | it              = essentiallyVar e
+    essentiallyVar (Var v)                      = Just v
+    essentiallyVar _                            = Nothing
 
     go :: RnEnv2 -> CoreExpr -> CoreExpr -> MaybeT (State (S.Set (Var,Var))) ()
     go env (Var v1) (Var v2) | rnOccL env v1 == rnOccR env v2 = pure ()
