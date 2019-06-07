@@ -118,9 +118,11 @@ eqSlice it slice1 slice2
     equate x y
         | Just e1 <- lookup x slice1
         , Just x' <- essentiallyVar e1
+        , x' `elem` map fst slice1
         = lift $ modify (S.insert (x',y))
         | Just e2 <- lookup y slice2
         , Just y' <- essentiallyVar e2
+        , y' `elem` map fst slice2
         = lift $ modify (S.insert (x,y'))
         | Just e1 <- lookup x slice1
         , Just e2 <- lookup y slice2
