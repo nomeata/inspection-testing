@@ -34,7 +34,7 @@ copyright:           2017 Joachim Breitner
 build-type:          Simple
 extra-source-files:  ChangeLog.md, README.md
 cabal-version:       >=1.10
-Tested-With:         GHC == 8.0.2, GHC == 8.2.*, GHC == 8.4.*, GHC ==8.6.*
+Tested-With:         GHC == 8.0.2, GHC == 8.2.*, GHC == 8.4.*, GHC ==8.6.*, GHC ==8.8.*
 
 source-repository head
   type:     git
