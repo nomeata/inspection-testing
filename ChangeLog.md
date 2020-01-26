@@ -1,5 +1,9 @@
 # Revision history for inspection-testing
 
+## 0.4.2.3 -- 2020-01-26
+
+* Support GHC-8.10, thanks to Ryan Scott via head.hackage for the patch
+
 ## 0.4.2.1 -- 2019-06-07
 
 * Bugfix release

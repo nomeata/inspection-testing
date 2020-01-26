@@ -292,7 +292,11 @@ proofPass upon_failure report guts = do
     dflags <- getDynFlags
     let noopt = optLevel dflags < 1
     when noopt $
-        warnMsg $ fsep $ map text $ words "Test.Inspection: Compilation without -O detected. Expect optimizations to fail."
+        warnMsg
+#if MIN_VERSION_GLASGOW_HASKELL(8,9,0,0)
+                NoReason
+#endif
+                $ fsep $ map text $ words "Test.Inspection: Compilation without -O detected. Expect optimizations to fail."
 
     let (guts', obligations) = extractObligations guts
     (toStore, stats) <- (concat `bimap` M.unionsWith (+)) . unzip <$>

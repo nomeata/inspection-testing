@@ -231,7 +231,11 @@ allTyCons predicate slice = listToMaybe [ (v,e) | (v,e) <- slice, not (go e) ]
                         -- ↑ This is the crucial bit
     goT (ForAllTy _ t)   = goT t
 #if MIN_VERSION_GLASGOW_HASKELL(8,2,0,0)
-    goT (FunTy t1 t2)    = goT t1 && goT t2
+    goT (FunTy
+# if MIN_VERSION_GLASGOW_HASKELL(8,9,0,0)
+               _
+# endif
+                 t1 t2)  = goT t1 && goT t2
 #endif
     goT (LitTy _)        = True
     goT (CastTy t _)     = goT t

@@ -1,5 +1,5 @@
 name:                inspection-testing
-version:             0.4.2.2
+version:             0.4.2.3
 synopsis:            GHC plugin to do inspection testing
 description:         Some carefully crafted libraries make promises to their
                      users beyond functionality and performance.
@@ -34,7 +34,7 @@ copyright:           2017 Joachim Breitner
 build-type:          Simple
 extra-source-files:  ChangeLog.md, README.md
 cabal-version:       >=1.10
-Tested-With:         GHC == 8.0.2, GHC == 8.2.*, GHC == 8.4.*, GHC ==8.6.*, GHC ==8.8.*
+Tested-With:         GHC == 8.0.2, GHC == 8.2.*, GHC == 8.4.*, GHC ==8.6.*, GHC ==8.8.*, GHC ==8.10.*
 
 source-repository head
   type:     git
@@ -45,8 +45,8 @@ library
                        Test.Inspection.Plugin
                        Test.Inspection.Core
   hs-source-dirs:      src
-  build-depends:       base >=4.9 && <4.14
-  build-depends:       ghc >= 8.0.2 && <8.9
+  build-depends:       base >=4.9 && <4.15
+  build-depends:       ghc >= 8.0.2 && <8.11
   build-depends:       template-haskell
   build-depends:       containers
   build-depends:       transformers
@@ -59,7 +59,7 @@ test-suite NS_NP
   hs-source-dirs:      examples
   main-is:             NS_NP.hs
   build-depends:       inspection-testing
-  build-depends:       base >=4.9 && <4.14
+  build-depends:       base >=4.9 && <4.15
   default-language:    Haskell2010
   ghc-options:         -main-is NS_NP
   if impl(ghc < 8.4)
@@ -70,7 +70,7 @@ test-suite simple
   hs-source-dirs:      examples
   main-is:             Simple.hs
   build-depends:       inspection-testing
-  build-depends:       base >=4.9 && <4.14
+  build-depends:       base >=4.9 && <4.15
   default-language:    Haskell2010
   ghc-options:         -main-is Simple
   if impl(ghc < 8.4)
@@ -81,7 +81,7 @@ test-suite simple-test
   hs-source-dirs:      examples
   main-is:             SimpleTest.hs
   build-depends:       inspection-testing
-  build-depends:       base >=4.9 && <4.14
+  build-depends:       base >=4.9 && <4.15
   default-language:    Haskell2010
   if impl(ghc < 8.4)
       ghc-options:       -fplugin=Test.Inspection.Plugin
@@ -91,7 +91,7 @@ test-suite doesnotuse
   hs-source-dirs:      examples
   main-is:             DoesNotUse.hs
   build-depends:       inspection-testing
-  build-depends:       base >=4.9 && <4.14
+  build-depends:       base >=4.9 && <4.15
   default-language:    Haskell2010
   ghc-options:         -main-is DoesNotUse
   if impl(ghc < 8.4)
@@ -102,7 +102,7 @@ test-suite fusion
   hs-source-dirs:      examples
   main-is:             Fusion.hs
   build-depends:       inspection-testing
-  build-depends:       base >=4.9 && <4.14
+  build-depends:       base >=4.9 && <4.15
   default-language:    Haskell2010
   ghc-options:         -main-is Fusion
   if impl(ghc < 8.4)
@@ -113,7 +113,7 @@ test-suite generics
   hs-source-dirs:      examples
   main-is:             Generics.hs
   build-depends:       inspection-testing
-  build-depends:       base >=4.9 && <4.14
+  build-depends:       base >=4.9 && <4.15
   default-language:    Haskell2010
   ghc-options:         -main-is Generics
   if impl(ghc < 8.4)
@@ -124,7 +124,7 @@ test-suite dictionary
   hs-source-dirs:      examples
   main-is:             Dictionary.hs
   build-depends:       inspection-testing
-  build-depends:       base >=4.9 && <4.14
+  build-depends:       base >=4.9 && <4.15
   default-language:    Haskell2010
   ghc-options:         -main-is Dictionary
   if impl(ghc < 8.4)
@@ -140,7 +140,7 @@ test-suite text
   main-is:             Text.hs
   if flag(more-tests)
     build-depends:       inspection-testing
-    build-depends:       base >=4.9 && <4.14
+    build-depends:       base >=4.9 && <4.15
     build-depends:       text ==1.2.2.2
     build-depends:       bytestring
   else
@@ -156,7 +156,7 @@ test-suite generic-lens
   main-is:             GenericLens.hs
   if flag(more-tests)
     build-depends:       inspection-testing
-    build-depends:       base >=4.9 && <4.14
+    build-depends:       base >=4.9 && <4.15
     build-depends:       generic-lens ==0.4.1.0
   else
     buildable:         False
@@ -170,7 +170,7 @@ test-suite mutual-recursion
    hs-source-dirs:      examples
    main-is:             MutualRecursion.hs
    build-depends:       inspection-testing
-   build-depends:       base >=4.9 && <4.14
+   build-depends:       base >=4.9 && <4.15
    default-language:    Haskell2010
    ghc-options:         -main-is MutualRecursion
 
@@ -179,7 +179,7 @@ test-suite regression
   hs-source-dirs:      examples
   main-is:             Regression.hs
   build-depends:       inspection-testing
-  build-depends:       base >=4.9 && <4.14
+  build-depends:       base >=4.9 && <4.15
   default-language:    Haskell2010
   if impl(ghc < 8.4)
       ghc-options:       -fplugin=Test.Inspection.Plugin
