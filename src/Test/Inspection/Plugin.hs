@@ -249,7 +249,11 @@ checkProperty guts thn (NoTypeClasses thts) = do
     case lookupNameInGuts guts n of
         Nothing -> pure . ResFailure $ ppr n <+> text "is not a local name"
         Just (v, _) -> case doesNotContainTypeClasses (slice binds v) ts of
-            Just (v',e') -> pure . ResFailure $ nest 4 (ppr v' <+> text "=" <+> ppr e')
+            Just (v',e',tc) -> pure . ResFailure
+                $ nest 4 $ vcat
+                    [ text "Found type classes: " <+> ppr tc
+                    , ppr v' <+> text "=" <+> ppr e'
+                    ]
             Nothing -> pure ResSuccess
   where binds = flattenBinds (mg_binds guts)
 

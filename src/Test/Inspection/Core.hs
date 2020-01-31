@@ -30,6 +30,7 @@ import TyCon (TyCon, isClassTyCon)
 import qualified Data.Set as S
 import Control.Monad.State.Strict
 import Control.Monad.Trans.Maybe
+import Data.List (nub)
 import Data.Maybe
 
 type Slice = [(Var, CoreExpr)]
@@ -203,43 +204,49 @@ eqSlice it slice1 slice2
 -- | Returns @True@ if the given core expression mentions no type constructor
 -- anywhere that has the given name.
 freeOfType :: Slice -> [Name] -> Maybe (Var, CoreExpr)
-freeOfType slice tcNs = allTyCons (\tc -> getName tc `notElem` tcNs) slice
+freeOfType slice tcNs =
+      fmap (\(a,b,_) -> (a,b))
+    $ allTyCons (\tc -> getName tc `notElem` tcNs) slice
 
-allTyCons :: (TyCon -> Bool) -> Slice -> Maybe (Var, CoreExpr)
-allTyCons predicate slice = listToMaybe [ (v,e) | (v,e) <- slice, not (go e) ]
+-- | Check if all type constructors in a slice satisfy the given predicate.
+-- Returns the binder, expression and failing constructors triple on failure.
+allTyCons :: (TyCon -> Bool) -> Slice -> Maybe (Var, CoreExpr, [TyCon])
+allTyCons predicate slice =
+    listToMaybe
+        [(v, e, nub tcs) | (v, e) <- slice, let tcs = go e, not (null tcs)]
   where
     goV v = goT (varType v)
 
     go (Var v)           = goV v
-    go (Lit _ )          = True
-    go (App e a)         = go e && go a
-    go (Lam b e)         = goV b && go e
-    go (Let bind body)   = all goB (flattenBinds [bind]) && go body
-    go (Case s b _ alts) = go s && goV b && all goA alts
+    go (Lit _)           = []
+    go (App e a)         = go e ++ go a
+    go (Lam b e)         = goV b ++ go e
+    go (Let bind body)   = concatMap goB (flattenBinds [bind]) ++ go body
+    go (Case s b _ alts) = go s ++ goV b ++ concatMap goA alts
     go (Cast e _)        = go e
     go (Tick _ e)        = go e
     go (Type t)          = (goT t)
-    go (Coercion _)      = True
+    go (Coercion _)      = []
 
-    goB (b, e) = goV b && go e
+    goB (b, e) = goV b ++ go e
 
-    goA (_,pats, e) = all goV pats && go e
+    goA (_,pats, e) = concatMap goV pats >> go e
 
-    goT (TyVarTy _)      = True
-    goT (AppTy t1 t2)    = goT t1 && goT t2
-    goT (TyConApp tc ts) = predicate tc && all goT ts
-                        -- ↑ This is the crucial bit
+    goT (TyVarTy _)      = []
+    goT (AppTy t1 t2)    = goT t1 ++ goT t2
+    goT (TyConApp tc ts) = if predicate tc then concatMap goT ts else [tc]
+                           -- ↑ This is the crucial bit
     goT (ForAllTy _ t)   = goT t
 #if MIN_VERSION_GLASGOW_HASKELL(8,2,0,0)
     goT (FunTy
 # if MIN_VERSION_GLASGOW_HASKELL(8,9,0,0)
                _
 # endif
-                 t1 t2)  = goT t1 && goT t2
+                 t1 t2)  = goT t1 ++ goT t2
 #endif
-    goT (LitTy _)        = True
+    goT (LitTy _)        = []
     goT (CastTy t _)     = goT t
-    goT (CoercionTy _)   = True
+    goT (CoercionTy _)   = []
 --
 -- | Returns @True@ if the given core expression mentions no term variable
 -- anywhere that has the given name.
@@ -315,6 +322,6 @@ doesNotAllocate slice = listToMaybe [ (v,e) | (v,e) <- slice, not (go (idArity v
 
     goA a (_,_, e) = go a e
 
-doesNotContainTypeClasses :: Slice -> [Name] -> Maybe (Var, CoreExpr)
+doesNotContainTypeClasses :: Slice -> [Name] -> Maybe (Var, CoreExpr, [TyCon])
 doesNotContainTypeClasses slice tcNs
     = allTyCons (\tc -> not (isClassTyCon tc) || any (getName tc ==) tcNs) slice
