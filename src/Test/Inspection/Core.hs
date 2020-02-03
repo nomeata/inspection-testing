@@ -211,7 +211,7 @@ freeOfType slice tcNs =
 -- | Check if all type constructors in a slice satisfy the given predicate.
 -- Returns the binder, expression and failing constructors triple on failure.
 allTyCons :: (TyCon -> Bool) -> Slice -> Maybe (Var, CoreExpr, [TyCon])
-allTyCons predicate slice =
+allTyCons ignore slice =
     listToMaybe
         [(v, e, nub tcs) | (v, e) <- slice, let tcs = go e, not (null tcs)]
   where
@@ -234,7 +234,7 @@ allTyCons predicate slice =
 
     goT (TyVarTy _)      = []
     goT (AppTy t1 t2)    = goT t1 ++ goT t2
-    goT (TyConApp tc ts) = [tc | predicate tc] ++ concatMap goT ts
+    goT (TyConApp tc ts) = [tc | not (ignore tc)] ++ concatMap goT ts
                            -- ↑ This is the crucial bit
     goT (ForAllTy _ t)   = goT t
 #if MIN_VERSION_GLASGOW_HASKELL(8,2,0,0)
