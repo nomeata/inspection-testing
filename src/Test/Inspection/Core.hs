@@ -234,7 +234,7 @@ allTyCons predicate slice =
 
     goT (TyVarTy _)      = []
     goT (AppTy t1 t2)    = goT t1 ++ goT t2
-    goT (TyConApp tc ts) = if predicate tc then concatMap goT ts else [tc]
+    goT (TyConApp tc ts) = [tc | predicate tc] ++ concatMap goT ts
                            -- ↑ This is the crucial bit
     goT (ForAllTy _ t)   = goT t
 #if MIN_VERSION_GLASGOW_HASKELL(8,2,0,0)
