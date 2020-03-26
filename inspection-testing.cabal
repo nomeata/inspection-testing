@@ -183,3 +183,13 @@ test-suite regression
   default-language:    Haskell2010
   if impl(ghc < 8.4)
       ghc-options:       -fplugin=Test.Inspection.Plugin
+
+test-suite worker-wrapper
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      examples
+  main-is:             WorkerWrapper.hs
+  build-depends:       inspection-testing
+  build-depends:       base >=4.9 && <4.15
+  default-language:    Haskell2010
+  if impl(ghc < 8.4)
+      ghc-options:       -fplugin=Test.Inspection.Plugin
