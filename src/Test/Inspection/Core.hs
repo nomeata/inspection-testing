@@ -230,7 +230,7 @@ allTyCons ignore slice =
 
     goB (b, e) = goV b ++ go e
 
-    goA (_,pats, e) = concatMap goV pats >> go e
+    goA (_,pats, e) = concatMap goV pats ++ go e
 
     goT (TyVarTy _)      = []
     goT (AppTy t1 t2)    = goT t1 ++ goT t2
