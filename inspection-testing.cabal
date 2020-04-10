@@ -1,5 +1,5 @@
 name:                inspection-testing
-version:             0.4.2.3
+version:             0.4.2.4
 synopsis:            GHC plugin to do inspection testing
 description:         Some carefully crafted libraries make promises to their
                      users beyond functionality and performance.

@@ -1,5 +1,11 @@
 # Revision history for inspection-testing
 
+## 0.4.2.4 -- 2020-01-26
+
+* Now prints the name of the type class on which a test fails, thanks to
+  Harendra Kumar
+* More examples, thanks to Rafe
+
 ## 0.4.2.3 -- 2020-01-26
 
 * Support GHC-8.10, thanks to Ryan Scott via head.hackage for the patch
