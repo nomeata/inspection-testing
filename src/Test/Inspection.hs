@@ -114,6 +114,7 @@ data Property
     --
     -- If the boolean flag is true, then ignore types and hpc ticks
     -- during the comparison.
+    -- See the note of '==-' for the pitfalls with coverage test.
     = EqualTo Name Bool
 
     -- | Do none of these types appear anywhere in the definition of the function
@@ -156,7 +157,12 @@ These convenience functions create common test obligations directly.
 infix 9 ===
 
 -- | Declare two functions to be equal, but ignoring
--- hpc ticks, type lambdas, type arguments and type casts (see 'EqualTo')
+-- hpc ticks, type lambdas, type arguments and type casts (see 'EqualTo').
+--
+-- Note: If the code being inspected contains if- or case-expression,
+-- the generated Core can contain trivial branching, even with @-O2@ option.
+-- To test the optimised code correctly, we recommend turning off @-fhpc@ option,
+-- and testing against libraries compiled /without/ @-fhpc@ (or equivalent) option.
 (==-) :: Name -> Name -> Obligation
 (==-) = mkEquality False True
 infix 9 ==-
