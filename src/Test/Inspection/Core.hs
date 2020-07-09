@@ -139,6 +139,7 @@ eqSlice it slice1 slice2
     essentiallyVar (Lam v e)  | it, isTyCoVar v = essentiallyVar e
     essentiallyVar (Cast e _) | it              = essentiallyVar e
     essentiallyVar (Var v)                      = Just v
+    essentiallyVar (Tick HpcTick{} e) | it      = essentiallyVar e
     essentiallyVar _                            = Nothing
 
     go :: RnEnv2 -> CoreExpr -> CoreExpr -> MaybeT (State (S.Set (Var,Var))) ()
