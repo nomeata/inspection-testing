@@ -98,7 +98,7 @@ type VarPairSet = S.Set VarPair
 -- have auxiliary variables in the right order.
 -- (This is mostly to work-around the buggy CSE in GHC-8.0)
 -- It also breaks if there is shadowing.
-eqSlice :: Bool {- ^ ignore types -} -> Slice -> Slice -> Bool
+eqSlice :: Bool {- ^ ignore types and hpc ticks -} -> Slice -> Slice -> Bool
 eqSlice _ slice1 slice2 | null slice1 || null slice2 = null slice1 == null slice2
   -- Mostly defensive programming (slices should not be empty)
 eqSlice it slice1 slice2
@@ -139,6 +139,7 @@ eqSlice it slice1 slice2
     essentiallyVar (Lam v e)  | it, isTyCoVar v = essentiallyVar e
     essentiallyVar (Cast e _) | it              = essentiallyVar e
     essentiallyVar (Var v)                      = Just v
+    essentiallyVar (Tick HpcTick{} e) | it      = essentiallyVar e
     essentiallyVar _                            = Nothing
 
     go :: RnEnv2 -> CoreExpr -> CoreExpr -> MaybeT (State (S.Set (Var,Var))) ()
@@ -156,6 +157,8 @@ eqSlice it slice1 slice2
     go env (App e1 a) e2 | it, isTyCoArg a = go env e1 e2
     go env e1 (App e2 a) | it, isTyCoArg a = go env e1 e2
     go env (App f1 a1)   (App f2 a2)       = go env f1 f2 >> go env a1 a2
+    go env (Tick HpcTick{} e1) e2 | it     = go env e1 e2
+    go env e1 (Tick HpcTick{} e2) | it     = go env e1 e2
     go env (Tick n1 e1)  (Tick n2 e2)      = guard (go_tick env n1 n2) >> go env e1 e2
 
     go env (Lam b e1) e2 | it, isTyCoVar b = go env e1 e2

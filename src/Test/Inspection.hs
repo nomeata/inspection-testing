@@ -112,7 +112,8 @@ data Property
     -- In general @f@ and @g@ need to be defined in this module, so that their
     -- actual defintions can be inspected.
     --
-    -- If the boolean flag is true, then ignore types during the comparison.
+    -- If the boolean flag is true, then ignore types and hpc ticks
+    -- during the comparison.
     = EqualTo Name Bool
 
     -- | Do none of these types appear anywhere in the definition of the function
@@ -155,7 +156,8 @@ These convenience functions create common test obligations directly.
 infix 9 ===
 
 -- | Declare two functions to be equal, but ignoring
--- type lambdas, type arguments and type casts (see 'EqualTo')
+-- type lambdas, type arguments, type casts and hpc ticks (see 'EqualTo').
+-- Note that `-fhpc` can prevent some optimizations; build without for more reliable analysis.
 (==-) :: Name -> Name -> Obligation
 (==-) = mkEquality False True
 infix 9 ==-
