@@ -114,7 +114,6 @@ data Property
     --
     -- If the boolean flag is true, then ignore types and hpc ticks
     -- during the comparison.
-    -- See the note of '==-' for the pitfalls with coverage test.
     = EqualTo Name Bool
 
     -- | Do none of these types appear anywhere in the definition of the function
