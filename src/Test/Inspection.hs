@@ -26,7 +26,7 @@ module Test.Inspection (
     Obligation(..), mkObligation, Property(..),
     -- * Convenience functions
     -- $convenience
-    (===), (==-), (=/=), hasNoType, hasNoGenerics,
+    (===), (==-), (=/=), (=/-), hasNoType, hasNoGenerics,
     hasNoTypeClasses, hasNoTypeClassesExcept,
     doesNotUse, coreOf,
 ) where
@@ -167,6 +167,12 @@ infix 9 ==-
 (=/=) :: Name -> Name -> Obligation
 (=/=) = mkEquality True False
 infix 9 =/=
+
+-- | Declare two functions to be equal up to types (see '(==-)'),
+-- but expect the test to fail (see 'expectFail'),
+(=/-) :: Name -> Name -> Obligation
+(=/-) = mkEquality False False
+infix 9 =/-
 
 mkEquality :: Bool -> Bool -> Name -> Name -> Obligation
 mkEquality expectFail ignore_types n1 n2 =
