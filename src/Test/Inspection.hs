@@ -168,10 +168,8 @@ infix 9 ==-
 (=/=) = mkEquality True False
 infix 9 =/=
 
--- | Declare two functions to be equal, but ignoring
--- type lambdas, type arguments, type casts and hpc ticks
--- but expect the test to fail (see 'EqualTo' and 'expectFail'),
--- Note that `-fhpc` can prevent some optimizations; build without for more reliable analysis.
+-- | Declare two functions to be equal up to types (see '(==-)'),
+-- but expect the test to fail (see 'expectFail'),
 (=/-) :: Name -> Name -> Obligation
 (=/-) = mkEquality False False
 infix 9 =/-
