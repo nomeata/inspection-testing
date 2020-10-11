@@ -26,6 +26,7 @@ import Test.Inspection.Core
 --
 -- * @-fplugin-opt=Test.Inspection.Plugin:keep-going@ to ignore a failing build
 -- * @-fplugin-opt=Test.Inspection.Plugin:keep-going-O0@ to ignore a failing build when optimisations are off
+-- * @-fplugin-opt=Test.Inspection.Plugin:skip-O0@ to skip inspections when optimisations are off
 -- * @-fplugin-opt=Test.Inspection.Plugin:quiet@ to be silent if all obligations are fulfilled
 plugin :: Plugin
 plugin = defaultPlugin
@@ -35,7 +36,7 @@ plugin = defaultPlugin
 #endif
     }
 
-data UponFailure = AbortCompilation | KeepGoingO0 | KeepGoing deriving Eq
+data UponFailure = AbortCompilation | KeepGoingO0 | SkipO0 | KeepGoing deriving Eq
 
 data ReportingMode = Verbose | Quiet deriving Eq
 
@@ -47,6 +48,7 @@ install args passes = return $ passes ++ [pass]
     pass = CoreDoPluginPass "Test.Inspection.Plugin" (proofPass upon_failure report)
     upon_failure | "keep-going" `elem` args    = KeepGoing
                  | "keep-going-O0" `elem` args = KeepGoingO0
+                 | "skip-O0" `elem` args       = SkipO0
                  | otherwise                   = AbortCompilation
     report | "quiet" `elem` args = Quiet
            | otherwise           = Verbose
@@ -295,40 +297,43 @@ proofPass :: UponFailure -> ReportingMode -> ModGuts -> CoreM ModGuts
 proofPass upon_failure report guts = do
     dflags <- getDynFlags
     let noopt = optLevel dflags < 1
-    when noopt $
-        warnMsg
+    case (noopt, upon_failure) of
+        (True, SkipO0) -> pure guts
+        (_   , _     ) -> do
+            when noopt $ do
+                warnMsg
 #if MIN_VERSION_GLASGOW_HASKELL(8,9,0,0)
-                NoReason
+                    NoReason
 #endif
-                $ fsep $ map text $ words "Test.Inspection: Compilation without -O detected. Expect optimizations to fail."
+                    $ fsep $ map text
+                    $ words "Test.Inspection: Compilation without -O detected. Expect optimizations to fail."
+            let (guts', obligations) = extractObligations guts
+            (toStore, stats) <- (concat `bimap` M.unionsWith (+)) . unzip <$>
+                mapM (checkObligation report guts') obligations
+            let n = sum stats :: Int
 
-    let (guts', obligations) = extractObligations guts
-    (toStore, stats) <- (concat `bimap` M.unionsWith (+)) . unzip <$>
-        mapM (checkObligation report guts') obligations
-    let n = sum stats :: Int
+            guts'' <- storeResults toStore  guts'
 
-    guts'' <- storeResults toStore  guts'
+            let q :: Stat -> Int
+                q s = fromMaybe 0 $ M.lookup s stats
 
-    let q :: Stat -> Int
-        q s = fromMaybe 0 $ M.lookup s stats
+            let summary_message = nest 2 $
+                    vcat [ nest 2 (desc s) Outputable.<> colon <+> ppr (q s)
+                         | s <- [minBound..maxBound], q s > 0 ]
 
-    let summary_message = nest 2 $
-            vcat [ nest 2 (desc s) Outputable.<> colon <+> ppr (q s)
-                 | s <- [minBound..maxBound], q s > 0 ]
+            -- Only print a message if there are some compile-time results to report
+            unless (q StoredResult == n) $ do
+                if q ExpSuccess + q ExpFailure + q StoredResult == n
+                then unless (report == Quiet) $
+                        putMsg $ text "inspection testing successful" $$ summary_message
+                else do
+                    errorMsg $ text "inspection testing unsuccessful" $$ summary_message
+                    case upon_failure of
+                        KeepGoing           -> return ()
+                        KeepGoingO0 | noopt -> return ()
+                        _                   -> liftIO $ exitFailure -- kill the compiler. Is there a nicer way?
 
-    -- Only print a message if there are some compile-time results to report
-    unless (q StoredResult == n) $ do
-        if q ExpSuccess + q ExpFailure + q StoredResult == n
-        then unless (report == Quiet) $
-                putMsg $ text "inspection testing successful" $$ summary_message
-        else do
-            errorMsg $ text "inspection testing unsuccessful" $$ summary_message
-            case upon_failure of
-                KeepGoing           -> return ()
-                KeepGoingO0 | noopt -> return ()
-                _                   -> liftIO $ exitFailure -- kill the compiler. Is there a nicer way?
-
-    return guts''
+            return guts''
 
 
 desc :: Stat -> SDoc
