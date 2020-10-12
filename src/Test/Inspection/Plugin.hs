@@ -24,10 +24,17 @@ import Test.Inspection.Core
 
 -- | The plugin. It supports some options:
 --
--- * @-fplugin-opt=Test.Inspection.Plugin:keep-going@ to ignore a failing build
--- * @-fplugin-opt=Test.Inspection.Plugin:keep-going-O0@ to ignore a failing build when optimisations are off
--- * @-fplugin-opt=Test.Inspection.Plugin:skip-O0@ to skip inspections when optimisations are off
+-- * @-fplugin-opt=Test.Inspection.Plugin:keep-going@ to keep building despite failing obligations
+-- * @-fplugin-opt=Test.Inspection.Plugin:keep-going-O0@ to keep building despite failing obligations, when optimisations are off
+-- * @-fplugin-opt=Test.Inspection.Plugin:skip-O0@ to skip performing inspections when optimisations are off
 -- * @-fplugin-opt=Test.Inspection.Plugin:quiet@ to be silent if all obligations are fulfilled
+--
+-- It makes sense to enable only one of @keep-going@, @keep-going-O0@ and
+-- @skip-O0@ at a time. @skip-O0@ is useful when working with GHCi, to suppress
+-- inspection failure messages and eliminate the overhead of inspection when
+-- loading.
+
+
 plugin :: Plugin
 plugin = defaultPlugin
     { installCoreToDos = install
