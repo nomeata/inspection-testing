@@ -59,7 +59,7 @@ test-suite NS_NP
   hs-source-dirs:      examples
   main-is:             NS_NP.hs
   build-depends:       inspection-testing
-  build-depends:       base >=4.9 && <4.15
+  build-depends:       base
   default-language:    Haskell2010
   ghc-options:         -main-is NS_NP
   if impl(ghc < 8.4)
@@ -70,7 +70,7 @@ test-suite HPCs
   hs-source-dirs:      examples
   main-is:             HPCs.hs
   build-depends:       inspection-testing
-  build-depends:       base >=4.9 && <4.15
+  build-depends:       base
   default-language:    Haskell2010
   ghc-options:         -main-is HPCs
   if impl(ghc < 8.4)
@@ -81,7 +81,7 @@ test-suite simple
   hs-source-dirs:      examples
   main-is:             Simple.hs
   build-depends:       inspection-testing
-  build-depends:       base >=4.9 && <4.15
+  build-depends:       base
   default-language:    Haskell2010
   ghc-options:         -main-is Simple
   if impl(ghc < 8.4)
@@ -92,7 +92,7 @@ test-suite simple-test
   hs-source-dirs:      examples
   main-is:             SimpleTest.hs
   build-depends:       inspection-testing
-  build-depends:       base >=4.9 && <4.15
+  build-depends:       base
   default-language:    Haskell2010
   if impl(ghc < 8.4)
       ghc-options:       -fplugin=Test.Inspection.Plugin
@@ -102,7 +102,7 @@ test-suite doesnotuse
   hs-source-dirs:      examples
   main-is:             DoesNotUse.hs
   build-depends:       inspection-testing
-  build-depends:       base >=4.9 && <4.15
+  build-depends:       base
   default-language:    Haskell2010
   ghc-options:         -main-is DoesNotUse
   if impl(ghc < 8.4)
@@ -113,7 +113,7 @@ test-suite fusion
   hs-source-dirs:      examples
   main-is:             Fusion.hs
   build-depends:       inspection-testing
-  build-depends:       base >=4.9 && <4.15
+  build-depends:       base
   default-language:    Haskell2010
   ghc-options:         -main-is Fusion
   if impl(ghc < 8.4)
@@ -124,7 +124,7 @@ test-suite generics
   hs-source-dirs:      examples
   main-is:             Generics.hs
   build-depends:       inspection-testing
-  build-depends:       base >=4.9 && <4.15
+  build-depends:       base
   default-language:    Haskell2010
   ghc-options:         -main-is Generics
   if impl(ghc < 8.4)
@@ -135,7 +135,7 @@ test-suite dictionary
   hs-source-dirs:      examples
   main-is:             Dictionary.hs
   build-depends:       inspection-testing
-  build-depends:       base >=4.9 && <4.15
+  build-depends:       base
   default-language:    Haskell2010
   ghc-options:         -main-is Dictionary
   if impl(ghc < 8.4)
@@ -151,7 +151,7 @@ test-suite text
   main-is:             Text.hs
   if flag(more-tests)
     build-depends:       inspection-testing
-    build-depends:       base >=4.9 && <4.15
+    build-depends:       base
     build-depends:       text ==1.2.2.2
     build-depends:       bytestring
   else
@@ -167,7 +167,7 @@ test-suite generic-lens
   main-is:             GenericLens.hs
   if flag(more-tests)
     build-depends:       inspection-testing
-    build-depends:       base >=4.9 && <4.15
+    build-depends:       base
     build-depends:       generic-lens ==0.4.1.0
   else
     buildable:         False
@@ -181,7 +181,7 @@ test-suite mutual-recursion
    hs-source-dirs:      examples
    main-is:             MutualRecursion.hs
    build-depends:       inspection-testing
-   build-depends:       base >=4.9 && <4.15
+   build-depends:       base
    default-language:    Haskell2010
    ghc-options:         -main-is MutualRecursion
 
@@ -190,7 +190,7 @@ test-suite regression
   hs-source-dirs:      examples
   main-is:             Regression.hs
   build-depends:       inspection-testing
-  build-depends:       base >=4.9 && <4.15
+  build-depends:       base
   default-language:    Haskell2010
   if impl(ghc < 8.4)
       ghc-options:       -fplugin=Test.Inspection.Plugin
@@ -200,7 +200,7 @@ test-suite worker-wrapper
   hs-source-dirs:      examples
   main-is:             WorkerWrapper.hs
   build-depends:       inspection-testing
-  build-depends:       base >=4.9 && <4.15
+  build-depends:       base
   default-language:    Haskell2010
   ghc-options:         -main-is WorkerWrapper
   if impl(ghc < 8.4)
