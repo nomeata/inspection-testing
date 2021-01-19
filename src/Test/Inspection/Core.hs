@@ -101,7 +101,7 @@ pprSliceDifference slice1 slice2 =
     slice2' = filter (\(v,_) -> v `S.notMember` both) slice2
 
 withLessDetail :: SDoc -> SDoc
-#if MIN_VERSION_GLASGOW_HASKELL(8,2,0,0)
+#if MIN_VERSION_GLASGOW_HASKELL(8,2,0,0) && !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 withLessDetail sdoc = sdocWithDynFlags $ \dflags ->
      withPprStyle (defaultUserStyle dflags) sdoc
 #else
@@ -259,6 +259,9 @@ allTyCons ignore slice =
     goT (ForAllTy _ t)   = goT t
 #if MIN_VERSION_GLASGOW_HASKELL(8,2,0,0)
     goT (FunTy
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+               _
+#endif
 # if MIN_VERSION_GLASGOW_HASKELL(8,9,0,0)
                _
 # endif
