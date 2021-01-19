@@ -12,6 +12,22 @@ module Test.Inspection.Core
   , doesNotContainTypeClasses
   ) where
 
+#if MIN_VERSION_ghc(9,0,0)
+import GHC.Core
+import GHC.Core.Utils
+import GHC.Core.TyCo.Rep
+import GHC.Core.Type
+import GHC.Types.Var
+import GHC.Types.Id
+import GHC.Types.Name
+import GHC.Types.Var.Env
+import GHC.Utils.Outputable
+import GHC.Core.Ppr
+import GHC.Core.Coercion
+import GHC.Utils.Misc
+import GHC.Core.DataCon
+import GHC.Core.TyCon (TyCon, isClassTyCon)
+#else
 import CoreSyn
 import CoreUtils
 import TyCoRep
@@ -26,6 +42,7 @@ import Coercion
 import Util
 import DataCon
 import TyCon (TyCon, isClassTyCon)
+#endif
 
 import qualified Data.Set as S
 import Control.Monad.State.Strict
