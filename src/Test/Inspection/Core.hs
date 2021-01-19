@@ -17,11 +17,11 @@ import GHC.Core
 import GHC.Core.Utils
 import GHC.Core.TyCo.Rep
 import GHC.Core.Type
-import GHC.Types.Var
+import GHC.Types.Var as Var
 import GHC.Types.Id
 import GHC.Types.Name
 import GHC.Types.Var.Env
-import GHC.Utils.Outputable
+import GHC.Utils.Outputable as Outputable
 import GHC.Core.Ppr
 import GHC.Core.Coercion
 import GHC.Utils.Misc
