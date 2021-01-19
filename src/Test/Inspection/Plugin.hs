@@ -16,8 +16,13 @@ import Data.List
 import qualified Data.Map.Strict as M
 import qualified Language.Haskell.TH.Syntax as TH
 
+#if MIN_VERSION_ghc(9,0,0)
+import GHC.Plugins hiding (SrcLoc)
+import GHC.Utils.Outputable as Outputable
+#else
 import GhcPlugins hiding (SrcLoc)
 import Outputable
+#endif
 
 import Test.Inspection (Obligation(..), Property(..), Result(..))
 import Test.Inspection.Core
