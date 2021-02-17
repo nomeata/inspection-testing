@@ -1,6 +1,6 @@
 {-# LANGUAGE GADTs, TypeFamilies, DataKinds, PolyKinds, TypeOperators #-}
 {-# LANGUAGE TemplateHaskell #-}
-{-# OPTIONS_GHC -O -fplugin-opt=Test.Inspection.Plugin:quiet #-}
+{-# OPTIONS_GHC -O -fplugin-opt=Test.Inspection.Plugin:quiet -Wno-overlapping-patterns #-}
 module NS_NP (main) where
 
 import Test.Inspection

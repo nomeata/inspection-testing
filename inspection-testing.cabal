@@ -141,41 +141,6 @@ test-suite dictionary
   if impl(ghc < 8.4)
       ghc-options:       -fplugin=Test.Inspection.Plugin
 
-flag more-tests
-  description: Run tests that pull in specific versions of other packages
-  default: False
-
-test-suite text
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      examples
-  main-is:             Text.hs
-  if flag(more-tests)
-    build-depends:       inspection-testing
-    build-depends:       base
-    build-depends:       text ==1.2.2.2
-    build-depends:       bytestring
-  else
-    buildable:         False
-  default-language:    Haskell2010
-  ghc-options:         -main-is Text
-  if impl(ghc < 8.4)
-      ghc-options:       -fplugin=Test.Inspection.Plugin
-
-test-suite generic-lens
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      examples
-  main-is:             GenericLens.hs
-  if flag(more-tests)
-    build-depends:       inspection-testing
-    build-depends:       base
-    build-depends:       generic-lens ==0.4.1.0
-  else
-    buildable:         False
-  default-language:    Haskell2010
-  ghc-options:         -main-is GenericLens
-  if impl(ghc < 8.4)
-      ghc-options:       -fplugin=Test.Inspection.Plugin
-
 test-suite mutual-recursion
    type:                exitcode-stdio-1.0
    hs-source-dirs:      examples
@@ -205,3 +170,44 @@ test-suite worker-wrapper
   ghc-options:         -main-is WorkerWrapper
   if impl(ghc < 8.4)
       ghc-options:       -fplugin=Test.Inspection.Plugin
+
+flag more-tests
+  description: Run tests that pull in specific versions of other packages
+  default: False
+
+test-suite generic-lens
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      examples
+  main-is:             GenericLens.hs
+  if flag(more-tests)
+    build-depends:       inspection-testing
+    build-depends:       base
+    build-depends:       generic-lens ==2.1.0.0
+  else
+    buildable:         False
+  default-language:    Haskell2010
+  ghc-options:         -main-is GenericLens
+  if impl(ghc < 8.4)
+      ghc-options:       -fplugin=Test.Inspection.Plugin
+
+
+flag old-text-tests
+  description: Run tests that exhibits bug in old text package. Only works with older version of GHC.
+  default: False
+
+test-suite text
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      examples
+  main-is:             Text.hs
+  if flag(old-text-tests)
+    build-depends:       inspection-testing
+    build-depends:       base
+    build-depends:       text ==1.2.2.2
+    build-depends:       bytestring
+  else
+    buildable:         False
+  default-language:    Haskell2010
+  ghc-options:         -main-is Text
+  if impl(ghc < 8.4)
+      ghc-options:       -fplugin=Test.Inspection.Plugin
+

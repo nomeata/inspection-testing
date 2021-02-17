@@ -1,4 +1,5 @@
 {-# LANGUAGE RankNTypes, DeriveGeneric, TypeApplications, DataKinds, ExistentialQuantification, TemplateHaskell #-}
+{-# OPTIONS_GHC -dsuppress-idinfo #-}
 module GenericLens (main) where
 
 import GHC.Generics
