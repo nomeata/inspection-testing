@@ -1,5 +1,13 @@
 # Revision history for inspection-testing
 
+## 0.4.3.0 -- 2020-01-26
+
+* Ignores HPC ticks in `(==-)` (thanks @konn)
+* Add `(=/-)` operator (thanks @lysxia)
+* Add skip-O0 plugin option (thanks @AndrasKovacs)
+* GHC-9.0 compatibility (thanks @konn)
+* CI now runs on Github Actions (thanks @phadej)
+
 ## 0.4.2.4 -- 2020-01-26
 
 * Now prints the name of the type class on which a test fails, thanks to
