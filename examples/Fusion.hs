@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell, CPP #-}
+{-# OPTIONS_GHC -dsuppress-all -funfolding-use-threshold=120 #-}
 module Fusion (main) where
 
 import Test.Inspection
@@ -10,8 +11,6 @@ sumUp1 n = sum [1..n] > 1000
 inspect $ 'sumUp1 `hasNoType` ''[]
 inspect $ ('sumUp1 `hasNoType` ''Int) { expectFail = True }
 inspect $ mkObligation 'sumUp1 NoAllocation
-
-#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 
 -- This stopped working in GHC-9.0, because
 -- * the > 1000 comparison is floated into the recursive join point (ok)
@@ -27,7 +26,6 @@ sumUp2 n = go 1 0 > 1000
                | otherwise = go (m+1) (s+m)
 
 inspect $ 'sumUp1 === 'sumUp2
-#endif
 
 -- Example for a non-fusing funtion
 sumUpSort :: Int -> Int
