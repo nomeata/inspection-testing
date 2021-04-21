@@ -1,5 +1,9 @@
 # Revision history for inspection-testing
 
+## 0.4.4.0 -- 2020-04-21
+
+* More GHC-9.0 compatibility (thanks @aadaa-fgtaa)
+
 ## 0.4.3.0 -- 2020-01-26
 
 * Ignores HPC ticks in `(==-)` (thanks @konn)
