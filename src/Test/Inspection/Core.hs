@@ -155,6 +155,9 @@ eqSlice it slice1 slice2
     essentiallyVar (App e a)  | it, isTyCoArg a = essentiallyVar e
     essentiallyVar (Lam v e)  | it, isTyCoVar v = essentiallyVar e
     essentiallyVar (Cast e _) | it              = essentiallyVar e
+#if MIN_VERSION_ghc(9,0,0)
+    essentiallyVar (Case s _ _ [(_, _, e)]) | it, isUnsafeEqualityProof s = essentiallyVar e
+#endif
     essentiallyVar (Var v)                      = Just v
     essentiallyVar (Tick HpcTick{} e) | it      = essentiallyVar e
     essentiallyVar _                            = Nothing
@@ -168,6 +171,10 @@ eqSlice it slice1 slice2
 
     go env (Cast e1 _) e2 | it             = go env e1 e2
     go env e1 (Cast e2 _) | it             = go env e1 e2
+#if MIN_VERSION_ghc(9,0,0)
+    go env (Case s _ _ [(_, _, e1)]) e2 | it, isUnsafeEqualityProof s = go env e1 e2
+    go env e1 (Case s _ _ [(_, _, e2)]) | it, isUnsafeEqualityProof s = go env e1 e2
+#endif
     go env (Cast e1 co1) (Cast e2 co2)     = do guard (eqCoercionX env co1 co2)
                                                 go env e1 e2
 
