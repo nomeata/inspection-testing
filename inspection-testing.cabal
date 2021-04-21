@@ -171,6 +171,17 @@ test-suite worker-wrapper
   if impl(ghc < 8.4)
       ghc-options:       -fplugin=Test.Inspection.Plugin
 
+test-suite unsafe-coerce
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      examples
+  main-is:             UnsafeCoerce.hs
+  build-depends:       inspection-testing
+  build-depends:       base
+  default-language:    Haskell2010
+  ghc-options:         -main-is UnsafeCoerce
+  if impl(ghc < 8.4)
+      ghc-options:       -fplugin=Test.Inspection.Plugin
+
 flag more-tests
   description: Run tests that pull in specific versions of other packages
   default: False
