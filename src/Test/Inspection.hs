@@ -16,7 +16,7 @@
 {-# LANGUAGE CPP #-}
 module Test.Inspection (
     -- * Synopsis
-    -- $synposis
+    -- $synopsis
 
     -- * Registering obligations
     inspect,
@@ -41,7 +41,7 @@ import Data.Maybe
 import GHC.Exts (lazy)
 import GHC.Generics (V1(), U1(), M1(), K1(), (:+:), (:*:), (:.:), Rec1, Par1)
 
-{- $synposis
+{- $synopsis
 
 To use inspection testing, you need to
 
@@ -67,7 +67,7 @@ inspect $ 'lhs === 'rhs
 
 On GHC < 8.4, you have to explicitly load the plugin:
 @
-{&#45;\# LANGUAGE TemplateHaskell \#&#45;}
+{&#45;\# OPTIONS_GHC -fplugin=Test.Inspection.Plugin \#&#45;}
 @
 -}
 
@@ -79,7 +79,7 @@ On GHC < 8.4, you have to explicitly load the plugin:
 -- compatibility when new fields are added. You can also use the more
 -- mnemonic convenience functions like '(===)' or 'hasNoType'.
 --
--- The obligation needs to be passed to 'inspect'.
+-- The obligation needs to be passed to 'inspect' or 'inspectTest'.
 data Obligation = Obligation
     { target      :: Name
         -- ^ The target of a test obligation; invariably the name of a local
@@ -157,7 +157,7 @@ infix 9 ===
 
 -- | Declare two functions to be equal, but ignoring
 -- type lambdas, type arguments, type casts and hpc ticks (see 'EqualTo').
--- Note that `-fhpc` can prevent some optimizations; build without for more reliable analysis.
+-- Note that @-fhpc@ can prevent some optimizations; build without for more reliable analysis.
 (==-) :: Name -> Name -> Obligation
 (==-) = mkEquality False True
 infix 9 ==-
@@ -189,7 +189,7 @@ hasNoType :: Name -> Name -> Obligation
 hasNoType n tn = mkObligation n (NoTypes [tn])
 
 -- | Declare that a function’s implementation does not contain any generic types.
--- This is just 'asNoType' applied to the usual type constructors used in
+-- This is just 'hasNoType' applied to the usual type constructors used in
 -- "GHC.Generics".
 --
 -- @inspect $ hasNoGenerics genericFunction@
@@ -256,13 +256,13 @@ didNotRunPluginError :: Result
 didNotRunPluginError = lazy (error "Test.Inspection.Plugin did not run")
 {-# NOINLINE didNotRunPluginError #-}
 
--- | This is a variant that allows compilation to succeed in any case,
+-- | This is a variant of 'inspect' that allows compilation to succeed in any case,
 -- and instead indicates the result as a value of type 'Result',
 -- which allows seamless integration into test frameworks.
 --
 -- This variant ignores the 'expectFail' field of the obligation. Instead,
 -- it is expected that you use the corresponding functionality in your test
--- framework (e.g. tasty-expected-failure)
+-- framework (e.g. [@tasty-expected-failure@](https://hackage.haskell.org/package/tasty-expected-failure))
 inspectTest :: Obligation -> Q Exp
 inspectTest obl = do
     nameS <- genName
