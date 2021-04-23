@@ -215,7 +215,7 @@ checkProperty guts thn1 (EqualTo thn2 ignore_types) = do
           -- OK if they have the same expression
           then pure ResSuccess
           -- Not ok if the expression differ
-          else pure . ResFailure $ pprSliceDifference slice1 slice2
+          else pure . ResFailure $ nest 4 $ pprSliceDifference slice1 slice2
        -- Not ok if both names are bound externally
        | Nothing <- p1
        , Nothing <- p2
