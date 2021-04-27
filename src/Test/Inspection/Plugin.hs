@@ -5,7 +5,11 @@
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE LambdaCase #-}
-module Test.Inspection.Plugin (plugin) where
+module Test.Inspection.Plugin
+  ( plugin
+  , checkProperty
+  , CheckResult(..)
+  ) where
 
 import Control.Monad
 import System.Exit
