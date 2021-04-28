@@ -93,8 +93,8 @@ pprSlice slice =
 -- | Pretty-print two slices, after removing variables occurring in both
 pprSliceDifference :: Slice -> Slice -> SDoc
 pprSliceDifference slice1 slice2 =
-    nest 4 (hang (text "LHS" Outputable.<> colon) 4 (pprSlice slice1')) $$
-    nest 4 (hang (text "RHS" Outputable.<> colon) 4 (pprSlice slice2'))
+    hang (text "LHS" Outputable.<> colon) 4 (pprSlice slice1') $$
+    hang (text "RHS" Outputable.<> colon) 4 (pprSlice slice2')
   where
     both = S.intersection (S.fromList (map fst slice1)) (S.fromList (map fst slice2))
     slice1' = filter (\(v,_) -> v `S.notMember` both) slice1
