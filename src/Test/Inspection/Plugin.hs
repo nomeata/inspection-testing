@@ -5,7 +5,12 @@
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE LambdaCase #-}
-module Test.Inspection.Plugin (plugin) where
+module Test.Inspection.Plugin
+  ( plugin
+  , checkProperty
+  , CheckResult(..)
+  , prettyProperty
+  ) where
 
 import Control.Monad
 import System.Exit
@@ -87,18 +92,19 @@ prettyObligation mod (Obligation {..}) result =
   where
     name = case testName of
         Just n -> n
-        Nothing -> prettyProperty mod target property
+        Nothing -> prettyProperty (showTHName mod) target property
 
-prettyProperty :: Module -> TH.Name -> Property -> String
-prettyProperty mod target (EqualTo n2 False)  = showTHName mod target ++ " === " ++ showTHName mod n2
-prettyProperty mod target (EqualTo n2 True)   = showTHName mod target ++ " ==- " ++ showTHName mod n2
-prettyProperty mod target (NoTypes [t])       = showTHName mod target ++ " `hasNoType` " ++ showTHName mod t
-prettyProperty mod target (NoTypes ts)        = showTHName mod target ++ " mentions none of " ++ intercalate ", " (map (showTHName mod) ts)
-prettyProperty mod target NoAllocation        = showTHName mod target ++ " does not allocate"
-prettyProperty mod target (NoTypeClasses [])  = showTHName mod target ++ " does not contain dictionary values"
-prettyProperty mod target (NoTypeClasses ts)  = showTHName mod target ++ " does not contain dictionary values except of " ++ intercalate ", " (map (showTHName mod) ts)
-prettyProperty mod target (NoUseOf ns)        = showTHName mod target ++ " uses none of " ++ intercalate ", " (map (showTHName mod) ns)
-prettyProperty mod target CoreOf              = showTHName mod target ++ " core dump" -- :)
+prettyProperty :: (TH.Name -> String) -> TH.Name -> Property -> String
+prettyProperty showName target = \case
+  EqualTo n2 False -> showName target ++ " === " ++ showName n2
+  EqualTo n2 True  -> showName target ++ " ==- " ++ showName n2
+  NoTypes [t]      -> showName target ++ " `hasNoType` " ++ showName t
+  NoTypes ts       -> showName target ++ " mentions none of " ++ intercalate ", " (map showName ts)
+  NoAllocation     -> showName target ++ " does not allocate"
+  NoTypeClasses [] -> showName target ++ " does not contain dictionary values"
+  NoTypeClasses ts -> showName target ++ " does not contain dictionary values except of " ++ intercalate ", " (map showName ts)
+  NoUseOf ns       -> showName target ++ " uses none of " ++ intercalate ", " (map showName ns)
+  CoreOf           -> showName target ++ " core dump" -- :)
 
 -- | Like show, but omit the module name if it is he current module
 showTHName :: Module -> TH.Name -> String
