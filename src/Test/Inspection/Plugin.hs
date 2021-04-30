@@ -29,6 +29,10 @@ import GhcPlugins hiding (SrcLoc)
 import Outputable
 #endif
 
+#if MIN_VERSION_ghc(9,2,0)
+import GHC.Types.TyThing
+#endif
+
 import Test.Inspection (Obligation(..), Property(..), Result(..))
 import Test.Inspection.Core
 

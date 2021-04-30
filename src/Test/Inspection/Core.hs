@@ -1,6 +1,6 @@
 -- | This module implements some analyses of Core expressions necessary for
 -- "Test.Inspection". Normally, users of this package can ignore this module.
-{-# LANGUAGE CPP, FlexibleContexts #-}
+{-# LANGUAGE CPP, FlexibleContexts, PatternSynonyms #-}
 module Test.Inspection.Core
   ( slice
   , pprSlice
@@ -44,11 +44,21 @@ import DataCon
 import TyCon (TyCon, isClassTyCon)
 #endif
 
+#if MIN_VERSION_ghc(9,2,0)
+import GHC.Types.Tickish
+#endif
+
 import qualified Data.Set as S
 import Control.Monad.State.Strict
 import Control.Monad.Trans.Maybe
 import Data.List (nub)
 import Data.Maybe
+
+#if !MIN_VERSION_ghc(9,2,0)
+pattern Alt :: a -> b -> c -> (a, b, c)
+pattern Alt a b c = (a, b, c)
+{-# COMPLETE Alt #-}
+#endif
 
 type Slice = [(Var, CoreExpr)]
 
@@ -67,7 +77,7 @@ slice binds v
         seen <- gets (v `S.member`)
         unless seen $ do
             modify (S.insert v)
-            let Just e = lookup v binds
+            let e = fromJust $ lookup v binds
             go e
           | otherwise = return ()
 
@@ -83,7 +93,7 @@ slice binds v
     go (Type _)                    = pure ()
     go (Coercion _)                = pure ()
 
-    goA (_, _, e) = go e
+    goA (Alt _ _ e) = go e
 
 -- | Pretty-print a slice
 pprSlice :: Slice -> SDoc
@@ -156,7 +166,7 @@ eqSlice it slice1 slice2
     essentiallyVar (Lam v e)  | it, isTyCoVar v = essentiallyVar e
     essentiallyVar (Cast e _) | it              = essentiallyVar e
 #if MIN_VERSION_ghc(9,0,0)
-    essentiallyVar (Case s _ _ [(_, _, e)]) | it, isUnsafeEqualityProof s = essentiallyVar e
+    essentiallyVar (Case s _ _ [Alt _ _ e]) | it, isUnsafeEqualityProof s = essentiallyVar e
 #endif
     essentiallyVar (Var v)                      = Just v
     essentiallyVar (Tick HpcTick{} e) | it      = essentiallyVar e
@@ -172,8 +182,8 @@ eqSlice it slice1 slice2
     go env (Cast e1 _) e2 | it             = go env e1 e2
     go env e1 (Cast e2 _) | it             = go env e1 e2
 #if MIN_VERSION_ghc(9,0,0)
-    go env (Case s _ _ [(_, _, e1)]) e2 | it, isUnsafeEqualityProof s = go env e1 e2
-    go env e1 (Case s _ _ [(_, _, e2)]) | it, isUnsafeEqualityProof s = go env e1 e2
+    go env (Case s _ _ [Alt _ _ e1]) e2 | it, isUnsafeEqualityProof s = go env e1 e2
+    go env e1 (Case s _ _ [Alt _ _ e2]) | it, isUnsafeEqualityProof s = go env e1 e2
 #endif
     go env (Cast e1 co1) (Cast e2 co2)     = do guard (eqCoercionX env co1 co2)
                                                 go env e1 e2
@@ -218,11 +228,16 @@ eqSlice it slice1 slice2
     go _ _ _ = guard False
 
     -----------
-    go_alt env (c1, bs1, e1) (c2, bs2, e2)
+    go_alt env (Alt c1 bs1 e1) (Alt c2 bs2 e2)
       = guard (c1 == c2) >> go (rnBndrs2 env bs1 bs2) e1 e2
 
+#if MIN_VERSION_ghc(9,2,0)
+    go_tick :: RnEnv2 -> CoreTickish -> CoreTickish -> Bool
+    go_tick env (Breakpoint _ lid lids) (Breakpoint _ rid rids)
+#else
     go_tick :: RnEnv2 -> Tickish Id -> Tickish Id -> Bool
     go_tick env (Breakpoint lid lids) (Breakpoint rid rids)
+#endif
           = lid == rid  &&  map (rnOccL env) lids == map (rnOccR env) rids
     go_tick _ l r = l == r
 
@@ -257,7 +272,7 @@ allTyCons ignore slice =
 
     goB (b, e) = goV b ++ go e
 
-    goA (_,pats, e) = concatMap goV pats ++ go e
+    goA (Alt _ pats e) = concatMap goV pats ++ go e
 
     goT (TyVarTy _)      = []
     goT (AppTy t1 t2)    = goT t1 ++ goT t2
@@ -303,7 +318,7 @@ freeOfTerm slice needles = listToMaybe [ (v,e) | (v,e) <- slice, not (go e) ]
 
     goB (_, e) = go e
 
-    goA (ac, _, e) = goAltCon ac && go e
+    goA (Alt ac _ e) = goAltCon ac && go e
 
     goAltCon (DataAlt dc) | isNeedle (dataConName dc) = False
     goAltCon _ = True
@@ -350,7 +365,7 @@ doesNotAllocate slice = listToMaybe [ (v,e) | (v,e) <- slice, not (go (idArity v
         -- A let binding allocates if any variable is not a join point and not
         -- unlifted
 
-    goA a (_,_, e) = go a e
+    goA a (Alt _ _ e) = go a e
 
 doesNotContainTypeClasses :: Slice -> [Name] -> Maybe (Var, CoreExpr, [TyCon])
 doesNotContainTypeClasses slice tcNs
