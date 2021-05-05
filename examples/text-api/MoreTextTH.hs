@@ -16,6 +16,7 @@ import Data.Traversable
 import Control.Monad
 import ShouldDoes
 import Test.QuickCheck.Gen
+import Test.QuickCheck.Random
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
@@ -28,9 +29,12 @@ randomPipeline = do
     c <-                 elements [ c | (c,_,_) <- consumers ]
     return $ [c] ++ ts ++ [p]
 
-randomPipelines :: Int -> IO [[Name]]
-randomPipelines n = generate $ vectorOf n randomPipeline
-
+-- Random in the sense of https://xkcd.com/221/
+randomPipelines :: Int -> [[Name]]
+randomPipelines n = unGen
+  (vectorOf n randomPipeline)
+  (mkQCGen 42) -- seed for QuickCheck generator
+  30           -- size for QuickCheck generator
 
 tests :: [(Name, [[Name]], Should, Does)]
 tests =
@@ -60,8 +64,8 @@ comp (f:fs) x = appE f (comp fs x)
 
 definePipelines :: DecsQ
 definePipelines = do
-    random_pipelines <- runIO $ randomPipelines ITERATIONS
-    let pipelines = function_pipelines ++ random_pipelines
+    let random_pipelines = randomPipelines ITERATIONS
+        pipelines = function_pipelines ++ random_pipelines
     putQ random_pipelines
     forM (nub pipelines) $ \pipeline -> do
         x <- newName "x"
