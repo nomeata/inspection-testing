@@ -22,12 +22,12 @@ executable test-strict
                        ShouldDoes
                        TextFuns
   other-extensions:    TemplateHaskell, MagicHash
-  build-depends:       base >=4.11 && <4.12
+  build-depends:       base >=4.11 && <4.17
   build-depends:       inspection-testing >=0.3 && <0.5
-  build-depends:       text ==1.2.3.1
-  build-depends:       QuickCheck >=2.9 && <2.10
-  build-depends:       template-haskell >=2.13 && <2.14
-  build-depends:       bytestring >=0.10 && <0.11
+  build-depends:       text
+  build-depends:       QuickCheck >=2.9 && <2.15
+  build-depends:       template-haskell >=2.13 && <2.19
+  build-depends:       bytestring >=0.10 && <0.12
   default-language:    Haskell2010
   -- -O2 is too slow
   ghc-options:         -O
@@ -43,12 +43,12 @@ executable test-lazy
                        ShouldDoes
                        LazyTextFuns
   other-extensions:    TemplateHaskell, MagicHash
-  build-depends:       base >=4.11 && <4.12
+  build-depends:       base >=4.11 && <4.17
   build-depends:       inspection-testing >=0.3 && <0.5
-  build-depends:       text ==1.2.3.1
-  build-depends:       QuickCheck >=2.9 && <2.10
-  build-depends:       template-haskell >=2.13 && <2.14
-  build-depends:       bytestring >=0.10 && <0.11
+  build-depends:       text
+  build-depends:       QuickCheck >=2.9 && <2.15
+  build-depends:       template-haskell >=2.13 && <2.19
+  build-depends:       bytestring >=0.10 && <0.12
   default-language:    Haskell2010
   -- -O2 is too slow
   ghc-options:         -O
@@ -61,8 +61,8 @@ executable stats
   other-modules:       ShouldDoes
                        TextFuns
                        LazyTextFuns
-  build-depends:       base >=4.11 && <4.12
-  build-depends:       text ==1.2.3.1
-  build-depends:       template-haskell >=2.13 && <2.14
-  build-depends:       bytestring >=0.10 && <0.11
+  build-depends:       base >=4.11 && <4.17
+  build-depends:       text
+  build-depends:       template-haskell >=2.13 && <2.19
+  build-depends:       bytestring >=0.10 && <0.12
   default-language:    Haskell2010
