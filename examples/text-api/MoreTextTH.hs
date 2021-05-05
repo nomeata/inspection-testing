@@ -31,7 +31,7 @@ randomPipeline = do
 
 -- Random in the sense of https://xkcd.com/221/
 randomPipelines :: Int -> [[Name]]
-randomPipelines n = unGen
+randomPipelines n = map head $ group $ sort $ unGen
   (vectorOf n randomPipeline)
   (mkQCGen 42) -- seed for QuickCheck generator
   30           -- size for QuickCheck generator
