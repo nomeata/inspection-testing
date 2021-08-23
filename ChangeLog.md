@@ -1,5 +1,9 @@
 # Revision history for inspection-testing
 
+## 0.4.6.0 -- 2020-08-23
+
+* Support GHC 9.2 (thanks @Bodigrim)
+
 ## 0.4.5.0 -- 2020-04-28
 
 * Export some internals from `Test.Inspection.Plugin`, to make integration into
