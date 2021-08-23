@@ -1,5 +1,5 @@
 name:                inspection-testing
-version:             0.4.5.0
+version:             0.4.6.0
 synopsis:            GHC plugin to do inspection testing
 description:         Some carefully crafted libraries make promises to their
                      users beyond functionality and performance.
@@ -34,7 +34,7 @@ copyright:           2017 Joachim Breitner
 build-type:          Simple
 extra-source-files:  ChangeLog.md, README.md
 cabal-version:       >=1.10
-Tested-With:         GHC == 8.0.2, GHC == 8.2.*, GHC == 8.4.*, GHC ==8.6.*, GHC ==8.8.*, GHC ==8.10.*, GHC ==9.0.*
+Tested-With:         GHC == 8.0.2, GHC == 8.2.*, GHC == 8.4.*, GHC ==8.6.*, GHC ==8.8.*, GHC ==8.10.*, GHC ==9.0.*, GHC ==9.2.*
 
 source-repository head
   type:     git
