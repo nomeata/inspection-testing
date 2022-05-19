@@ -45,8 +45,8 @@ library
                        Test.Inspection.Plugin
                        Test.Inspection.Core
   hs-source-dirs:      src
-  build-depends:       base >=4.9 && <4.17
-  build-depends:       ghc >= 8.0.2 && <9.3
+  build-depends:       base >=4.9 && <4.18
+  build-depends:       ghc >= 8.0.2 && <9.5
   build-depends:       template-haskell
   build-depends:       containers
   build-depends:       transformers

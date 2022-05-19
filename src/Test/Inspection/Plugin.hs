@@ -21,6 +21,11 @@ import Data.List
 import qualified Data.Map.Strict as M
 import qualified Language.Haskell.TH.Syntax as TH
 
+#if MIN_VERSION_ghc(9,4,0)
+import GHC.Types.Error
+import GHC.Driver.Session
+#endif
+
 #if MIN_VERSION_ghc(9,0,0)
 import GHC.Plugins hiding (SrcLoc)
 import GHC.Utils.Outputable as Outputable
@@ -35,6 +40,97 @@ import GHC.Types.TyThing
 
 import Test.Inspection (Obligation(..), Property(..), Result(..))
 import Test.Inspection.Core
+
+#if MIN_VERSION_ghc(9,4,0)
+-- GHC does not expose this function, so I had to vendor it in.
+-- DynFlags does not have an Eq instance, so we can't do @dflags == updOptLevel 1 dflags@
+--
+-- Relevant GHC issue: https://gitlab.haskell.org/ghc/ghc/-/issues/21599
+
+updOptLevelChanged :: Int -> DynFlags -> (DynFlags, Bool)
+-- ^ Sets the 'DynFlags' to be appropriate to the optimisation level and signals if any changes took place
+updOptLevelChanged n dfs
+  = (dfs3, changed1 || changed2 || changed3)
+  where
+   final_n = max 0 (min 2 n)    -- Clamp to 0 <= n <= 2
+   (dfs1, changed1) = foldr unset (dfs , False) remove_gopts
+   (dfs2, changed2) = foldr set   (dfs1, False) extra_gopts
+   (dfs3, changed3) = setLlvmOptLevel dfs2
+
+   extra_gopts  = [ f | (ns,f) <- optLevelFlags, final_n `elem` ns ]
+   remove_gopts = [ f | (ns,f) <- optLevelFlags, final_n `notElem` ns ]
+
+   set f (dfs, changed)
+     | gopt f dfs = (dfs, changed)
+     | otherwise = (gopt_set dfs f, True)
+
+   unset f (dfs, changed)
+     | not (gopt f dfs) = (dfs, changed)
+     | otherwise = (gopt_unset dfs f, True)
+
+   setLlvmOptLevel dfs
+     | llvmOptLevel dfs /= final_n = (dfs{ llvmOptLevel = final_n }, True)
+     | otherwise = (dfs, False)
+
+optLevelFlags :: [([Int], GeneralFlag)]
+-- Default settings of flags, before any command-line overrides
+optLevelFlags -- see Note [Documenting optimisation flags]
+  = [ ([0,1,2], Opt_DoLambdaEtaExpansion)
+    , ([0,1,2], Opt_DoEtaReduction)       -- See Note [Eta-reduction in -O0]
+    , ([0,1,2], Opt_LlvmTBAA)
+    , ([0,1,2], Opt_ProfManualCcs )
+    , ([2], Opt_DictsStrict)
+
+    , ([0],     Opt_IgnoreInterfacePragmas)
+    , ([0],     Opt_OmitInterfacePragmas)
+
+    , ([1,2],   Opt_CoreConstantFolding)
+
+    , ([1,2],   Opt_CallArity)
+    , ([1,2],   Opt_Exitification)
+    , ([1,2],   Opt_CaseMerge)
+    , ([1,2],   Opt_CaseFolding)
+    , ([1,2],   Opt_CmmElimCommonBlocks)
+    , ([2],     Opt_AsmShortcutting)
+    , ([1,2],   Opt_CmmSink)
+    , ([1,2],   Opt_CmmStaticPred)
+    , ([1,2],   Opt_CSE)
+    , ([1,2],   Opt_StgCSE)
+    , ([2],     Opt_StgLiftLams)
+    , ([1,2],   Opt_CmmControlFlow)
+
+    , ([1,2],   Opt_EnableRewriteRules)
+          -- Off for -O0.   Otherwise we desugar list literals
+          -- to 'build' but don't run the simplifier passes that
+          -- would rewrite them back to cons cells!  This seems
+          -- silly, and matters for the GHCi debugger.
+
+    , ([1,2],   Opt_FloatIn)
+    , ([1,2],   Opt_FullLaziness)
+    , ([1,2],   Opt_IgnoreAsserts)
+    , ([1,2],   Opt_Loopification)
+    , ([1,2],   Opt_CfgBlocklayout)      -- Experimental
+
+    , ([1,2],   Opt_Specialise)
+    , ([1,2],   Opt_CrossModuleSpecialise)
+    , ([1,2],   Opt_InlineGenerics)
+    , ([1,2],   Opt_Strictness)
+    , ([1,2],   Opt_UnboxSmallStrictFields)
+    , ([1,2],   Opt_CprAnal)
+    , ([1,2],   Opt_WorkerWrapper)
+    , ([1,2],   Opt_SolveConstantDicts)
+    , ([1,2],   Opt_NumConstantFolding)
+
+    , ([2],     Opt_LiberateCase)
+    , ([2],     Opt_SpecConstr)
+    , ([2],     Opt_FastPAPCalls)
+--  , ([2],     Opt_RegsGraph)
+--   RegsGraph suffers performance regression. See #7679
+--  , ([2],     Opt_StaticArgumentTransformation)
+--   Static Argument Transformation needs investigation. See #9374
+    ]
+
+#endif
 
 -- | The plugin. It supports some options:
 --
@@ -318,14 +414,27 @@ resultToExpr (Failure s) = App <$> dcExpr 'Failure <*> mkStringExpr s
 proofPass :: UponFailure -> ReportingMode -> ModGuts -> CoreM ModGuts
 proofPass upon_failure report guts = do
     dflags <- getDynFlags
-    let noopt = optLevel dflags < 1
+    let noopt =
+#if MIN_VERSION_ghc(9,4,0)
+            snd $ updOptLevelChanged 1 dflags
+            -- the function 'updOptLevelChanged' sets GHC optimization flag
+            -- to the number given, and returns whether or not anything in
+            -- the dynflags changed.
+#else
+            optLevel dflags < 1
+#endif
     case (noopt, upon_failure) of
         (True, SkipO0) -> pure guts
         (_   , _     ) -> do
             when noopt $ do
+#if MIN_VERSION_ghc(9,4,0)
+                msg
+                    (MCDiagnostic SevWarning WarningWithoutFlag)
+#else
                 warnMsg
 #if MIN_VERSION_GLASGOW_HASKELL(8,9,0,0)
                     NoReason
+#endif
 #endif
                     $ fsep $ map text
                     $ words "Test.Inspection: Compilation without -O detected. Expect optimizations to fail."
