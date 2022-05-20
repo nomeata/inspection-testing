@@ -34,7 +34,7 @@ copyright:           2017 Joachim Breitner
 build-type:          Simple
 extra-source-files:  ChangeLog.md, README.md
 cabal-version:       >=1.10
-Tested-With:         GHC == 8.0.2, GHC == 8.2.*, GHC == 8.4.*, GHC ==8.6.*, GHC ==8.8.*, GHC ==8.10.*, GHC ==9.0.*, GHC ==9.2.*
+Tested-With:         GHC == 8.0.2, GHC == 8.2.*, GHC == 8.4.*, GHC ==8.6.*, GHC ==8.8.*, GHC ==8.10.*, GHC ==9.0.*, GHC ==9.2.*, GHC ==9.4.*
 
 source-repository head
   type:     git
@@ -45,8 +45,8 @@ library
                        Test.Inspection.Plugin
                        Test.Inspection.Core
   hs-source-dirs:      src
-  build-depends:       base >=4.9 && <4.17
-  build-depends:       ghc >= 8.0.2 && <9.3
+  build-depends:       base >=4.9 && <4.18
+  build-depends:       ghc >= 8.0.2 && <9.5
   build-depends:       template-haskell
   build-depends:       containers
   build-depends:       transformers

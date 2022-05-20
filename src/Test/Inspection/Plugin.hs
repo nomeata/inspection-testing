@@ -21,6 +21,11 @@ import Data.List
 import qualified Data.Map.Strict as M
 import qualified Language.Haskell.TH.Syntax as TH
 
+#if MIN_VERSION_ghc(9,4,0)
+import GHC.Types.Error
+import GHC.Driver.Session
+#endif
+
 #if MIN_VERSION_ghc(9,0,0)
 import GHC.Plugins hiding (SrcLoc)
 import GHC.Utils.Outputable as Outputable
@@ -317,18 +322,9 @@ resultToExpr (Failure s) = App <$> dcExpr 'Failure <*> mkStringExpr s
 
 proofPass :: UponFailure -> ReportingMode -> ModGuts -> CoreM ModGuts
 proofPass upon_failure report guts = do
-    dflags <- getDynFlags
-    let noopt = optLevel dflags < 1
-    case (noopt, upon_failure) of
-        (True, SkipO0) -> pure guts
-        (_   , _     ) -> do
-            when noopt $ do
-                warnMsg
-#if MIN_VERSION_GLASGOW_HASKELL(8,9,0,0)
-                    NoReason
-#endif
-                    $ fsep $ map text
-                    $ words "Test.Inspection: Compilation without -O detected. Expect optimizations to fail."
+    case upon_failure of
+        SkipO0 -> pure guts
+        _ -> do
             let (guts', obligations) = extractObligations guts
             (toStore, stats) <- (concat `bimap` M.unionsWith (+)) . unzip <$>
                 mapM (checkObligation report guts') obligations
@@ -352,7 +348,6 @@ proofPass upon_failure report guts = do
                     errorMsg $ text "inspection testing unsuccessful" $$ summary_message
                     case upon_failure of
                         KeepGoing           -> return ()
-                        KeepGoingO0 | noopt -> return ()
                         _                   -> liftIO $ exitFailure -- kill the compiler. Is there a nicer way?
 
             return guts''
