@@ -20,9 +20,11 @@ import GHC.Core.Type
 import GHC.Types.Var as Var
 import GHC.Types.Id
 import GHC.Types.Name
+import GHC.Types.Literal
 import GHC.Types.Var.Env
 import GHC.Utils.Outputable as Outputable
 import GHC.Core.Ppr
+import GHC.Core.Subst
 import GHC.Core.Coercion
 import GHC.Utils.Misc
 import GHC.Core.DataCon
@@ -30,10 +32,12 @@ import GHC.Core.TyCon (TyCon, isClassTyCon)
 #else
 import CoreSyn
 import CoreUtils
+import CoreSubst
 import TyCoRep
 import Type
 import Var
 import Id
+import Literal
 import Name
 import VarEnv
 import Outputable
@@ -102,13 +106,52 @@ pprSlice slice =
 
 -- | Pretty-print two slices, after removing variables occurring in both
 pprSliceDifference :: Slice -> Slice -> SDoc
-pprSliceDifference slice1 slice2 =
-    hang (text "LHS" Outputable.<> colon) 4 (pprSlice slice1') $$
-    hang (text "RHS" Outputable.<> colon) 4 (pprSlice slice2')
+pprSliceDifference slice1 slice2
+    | [(v1,e1)] <- slice1'
+    , [(v2,e2)] <- slice2'
+    = pprSingletonSliceDifference v1 v2 e1 e2
+
+    | otherwise =
+        hang (text "LHS" Outputable.<> colon) 4 (pprSlice slice1') $$
+        hang (text "RHS" Outputable.<> colon) 4 (pprSlice slice2')
   where
     both = S.intersection (S.fromList (map fst slice1)) (S.fromList (map fst slice2))
     slice1' = filter (\(v,_) -> v `S.notMember` both) slice1
     slice2' = filter (\(v,_) -> v `S.notMember` both) slice2
+
+pprSingletonSliceDifference :: Var -> Var -> CoreExpr -> CoreExpr -> SDoc
+pprSingletonSliceDifference v1 v2 e1 e2 =
+    ctxDoc $
+    hang (text "LHS" Outputable.<> colon) 4 (hang (pprPrefixOcc v1) 2 (eqSign <+> pprCoreExpr e1')) $$
+    hang (text "RHS" Outputable.<> colon) 4 (hang (pprPrefixOcc v2) 2 (eqSign <+> pprCoreExpr e2'))
+  where
+    hasContext = not (null ctxt)
+
+    ctxDoc | hasContext = id
+           | otherwise = (hang (text "In") 4 (ppr $ mkContextExpr (reverse (map snd ctxt))) $$)
+
+    eqSign | hasContext = text "= ..."
+           | otherwise  = equals
+
+    (e1', e2', ctxt) = go e1 e2 [] (mkRnEnv2 emptyInScopeSet)
+
+    go :: CoreExpr -> CoreExpr -> [(Var, Var)] -> RnEnv2 -> (CoreExpr, CoreExpr, [(Var, Var)])
+    go (Lam b1 t1) (Lam b2 t2) ctxt env
+        | eqTypeX env (varType b1) (varType b2)
+        = go t1 t2 ((b1,b2):ctxt) (rnBndr2 env b1 b2)
+      where
+    go x y ctxt _env = (rename ctxt x, y, ctxt)
+
+    mkContextExpr :: [Var] -> CoreExpr
+    mkContextExpr []       = ellipsis
+    mkContextExpr (x:rest) = Lam x (mkContextExpr rest)
+
+    ellipsis :: CoreExpr
+#if MIN_VERSION_ghc(8,8,0)
+    ellipsis = Lit $ mkLitString "..."
+#else
+    ellipsis = Lit $ mkMachString "..."
+#endif
 
 withLessDetail :: SDoc -> SDoc
 #if MIN_VERSION_GLASGOW_HASKELL(8,2,0,0) && !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
@@ -370,3 +413,15 @@ doesNotAllocate slice = listToMaybe [ (v,e) | (v,e) <- slice, not (go (idArity v
 doesNotContainTypeClasses :: Slice -> [Name] -> Maybe (Var, CoreExpr, [TyCon])
 doesNotContainTypeClasses slice tcNs
     = allTyCons (\tc -> not (isClassTyCon tc) || any (getName tc ==) tcNs) slice
+
+rename :: [(Var, Var)] -> CoreExpr -> CoreExpr
+rename rn = substExpr' sub where
+    -- convert RnEnv2 to Subst
+    -- here we forget about tyvars and covars, but mostly this is good enough.
+    sub = mkOpenSubst emptyInScopeSet [ (v1, if isTyVar v2 then Type (mkTyVarTy v2) else if isCoVar v2 then Coercion (mkCoVarCo v2) else Var v2 ) | (v1, v2) <- rn]
+
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+    substExpr' = substExpr
+#else
+    substExpr' = substExpr empty
+#endif
