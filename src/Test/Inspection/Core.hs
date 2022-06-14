@@ -1,6 +1,6 @@
 -- | This module implements some analyses of Core expressions necessary for
 -- "Test.Inspection". Normally, users of this package can ignore this module.
-{-# LANGUAGE CPP, FlexibleContexts, PatternSynonyms #-}
+{-# LANGUAGE CPP, FlexibleContexts, PatternSynonyms, MultiWayIf #-}
 module Test.Inspection.Core
   ( slice
   , pprSlice
@@ -58,6 +58,9 @@ import Data.List (nub)
 import Data.Maybe
 
 import Test.Inspection (Equivalence (..))
+
+-- import Debug.Trace
+-- import Data.Bifunctor (bimap)
 
 #if !MIN_VERSION_ghc(9,2,0)
 pattern Alt :: a -> b -> c -> (a, b, c)
@@ -174,7 +177,8 @@ eqSlice :: Equivalence -> Slice -> Slice -> Bool
 eqSlice _ slice1 slice2 | null slice1 || null slice2 = null slice1 == null slice2
   -- Mostly defensive programming (slices should not be empty)
 eqSlice eqv slice1 slice2
-  = step (S.singleton (fst (head slice1), fst (head slice2))) S.empty
+    -- slices are equal if there exist any result with no "unification" obligations left.
+    = any (S.null . snd) results
   where
     -- ignore types and hpc ticks
     it :: Bool
@@ -182,33 +186,59 @@ eqSlice eqv slice1 slice2
         StrictEquiv              -> False
         IgnoreTypesAndTicksEquiv -> True
 
-    step :: VarPairSet -> VarPairSet -> Bool
-    step wanted done
-        | wanted `S.isSubsetOf` done
-        = True -- done
-        | (x,y) : _ <- S.toList (wanted `S.difference` done)
-        , Just (_, wanted') <- runStateT (equate x y) wanted
-        = step wanted' (S.insert (x,y) done)
-        | otherwise
-        = False
+    -- results. If there are no pairs to be equated, all is fine.
+    results :: [((), VarPairSet)]
+    results = runStateT (loop' (mkRnEnv2 emptyInScopeSet) S.empty (fst (head slice1)) (fst (head slice2))) S.empty
 
+    -- while there are obligations left, try to equate them.
+    loop :: RnEnv2 -> VarPairSet -> StateT VarPairSet [] ()
+    loop env done = do
+        vars <- get
+        case S.minView vars of
+            Nothing -> return () -- nothing to do, done.
+            Just ((x, y), vars') -> do
+                put vars'
+                if (x, y) `S.member` done
+                then loop env done
+                else loop' env done x y
 
-    equate :: Var -> Var -> StateT VarPairSet Maybe ()
-    equate x y
-        | Just e1 <- lookup x slice1
-        , Just x' <- essentiallyVar e1
-        , x' `elem` map fst slice1
-        = modify (S.insert (x',y))
-        | Just e2 <- lookup y slice2
-        , Just y' <- essentiallyVar e2
-        , y' `elem` map fst slice2
-        = modify (S.insert (x,y'))
-        | Just e1 <- lookup x slice1
-        , Just e2 <- lookup y slice2
-        = go (mkRnEnv2 emptyInScopeSet) e1 e2
-    equate _ _ = mzero
+    loop' :: RnEnv2 -> VarPairSet -> Var -> Var -> StateT VarPairSet [] ()
+    loop' env done x y = do
+        -- let varToString = occNameString . occName
+        -- traceM $ "x, y = " ++ varToString x ++ ", " ++ varToString y
+        -- traceM $ "done = " ++ show (map (bimap varToString varToString) (S.toList done))
 
-    equated :: Var -> Var -> StateT VarPairSet Maybe ()
+        -- if x or y expressions are essentially a variable x' or y' respectively
+        -- add an obligation to check x' = y (or x = y').
+        if | Just e1 <- lookup x slice1
+           , Just x' <- essentiallyVar e1
+           , x' `elem` map fst slice1
+           -> do modify' (S.insert (x', y))
+                 loop env done
+
+           | Just e2 <- lookup y slice2
+           , Just y' <- essentiallyVar e2
+           , y' `elem` map fst slice2
+           -> do modify' (S.insert (x, y'))
+                 loop env done
+
+            -- otherwise if neither x and y expressions are variables
+            -- 1. compare the expressions (already assuming that x and y are equal)
+            -- 2. comparison may create new obligations, loop.
+           | Just e1 <- lookup x slice1
+           , Just e2 <- lookup y slice2
+           -> do
+               let env' = rnBndr2 env x y
+                   done' = S.insert (x, y) done
+
+               go env' e1 e2
+               loop env' done'
+
+            -- and finally, if x or y are not in the slice, we abort.
+           | otherwise
+           -> mzero
+
+    equated :: Var -> Var -> StateT VarPairSet [] ()
     equated x y | x == y = return ()
     equated x y = modify (S.insert (x,y))
 
@@ -223,9 +253,9 @@ eqSlice eqv slice1 slice2
     essentiallyVar (Tick HpcTick{} e) | it      = essentiallyVar e
     essentiallyVar _                            = Nothing
 
-    go :: RnEnv2 -> CoreExpr -> CoreExpr -> StateT VarPairSet Maybe ()
+    go :: RnEnv2 -> CoreExpr -> CoreExpr -> StateT VarPairSet [] ()
     go env (Var v1) (Var v2) | rnOccL env v1 == rnOccR env v2 = pure ()
-                             | otherwise = equated v1 v2
+                             | otherwise                      = equated v1 v2
     go _   (Lit lit1)    (Lit lit2)        = guard $ lit1 == lit2
     go env (Type t1)     (Type t2)         = guard $ eqTypeX env t1 t2
     go env (Coercion co1) (Coercion co2)   = guard $ eqCoercionX env co1 co2
