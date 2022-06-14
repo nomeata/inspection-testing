@@ -23,7 +23,7 @@ module Test.Inspection (
     inspectTest,
     Result(..),
     -- * Defining obligations
-    Obligation(..), mkObligation, Property(..),
+    Obligation(..), mkObligation, Equivalence (..), Property(..),
     -- * Convenience functions
     -- $convenience
     (===), (==-), (=/=), (=/-), hasNoType, hasNoGenerics,
@@ -112,9 +112,8 @@ data Property
     -- In general @f@ and @g@ need to be defined in this module, so that their
     -- actual defintions can be inspected.
     --
-    -- If the boolean flag is true, then ignore types and hpc ticks
-    -- during the comparison.
-    = EqualTo Name Bool
+    -- The `Equivalence` indicates how strict to check for equality
+    = EqualTo Name Equivalence
 
     -- | Do none of these types appear anywhere in the definition of the function
     -- (neither locally bound nor passed as arguments)
@@ -131,6 +130,12 @@ data Property
 
     -- | Always satisfied, but dumps the value in non-quiet mode.
     | CoreOf
+    deriving Data
+
+-- | Equivalence of terms.
+data Equivalence
+    = StrictEquiv               -- ^ strict term equality
+    | IgnoreTypesAndTicksEquiv  -- ^ ignore types and hpc ticks during the comparison
     deriving Data
 
 -- | Creates an inspection obligation for the given function name
@@ -152,29 +157,29 @@ These convenience functions create common test obligations directly.
 
 -- | Declare two functions to be equal (see 'EqualTo')
 (===) :: Name -> Name -> Obligation
-(===) = mkEquality False False
+(===) = mkEquality False StrictEquiv
 infix 9 ===
 
 -- | Declare two functions to be equal, but ignoring
 -- type lambdas, type arguments, type casts and hpc ticks (see 'EqualTo').
 -- Note that @-fhpc@ can prevent some optimizations; build without for more reliable analysis.
 (==-) :: Name -> Name -> Obligation
-(==-) = mkEquality False True
+(==-) = mkEquality False IgnoreTypesAndTicksEquiv
 infix 9 ==-
 
 -- | Declare two functions to be equal, but expect the test to fail (see 'EqualTo' and 'expectFail')
 -- (This is useful for documentation purposes, or as a TODO list.)
 (=/=) :: Name -> Name -> Obligation
-(=/=) = mkEquality True False
+(=/=) = mkEquality True StrictEquiv
 infix 9 =/=
 
 -- | Declare two functions to be equal up to types (see '(==-)'),
 -- but expect the test to fail (see 'expectFail'),
 (=/-) :: Name -> Name -> Obligation
-(=/-) = mkEquality False False
+(=/-) = mkEquality False IgnoreTypesAndTicksEquiv
 infix 9 =/-
 
-mkEquality :: Bool -> Bool -> Name -> Name -> Obligation
+mkEquality :: Bool -> Equivalence -> Name -> Name -> Obligation
 mkEquality expectFail ignore_types n1 n2 =
     (mkObligation n1 (EqualTo n2 ignore_types))
         { expectFail = expectFail }

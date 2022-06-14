@@ -38,7 +38,7 @@ import Outputable
 import GHC.Types.TyThing
 #endif
 
-import Test.Inspection (Obligation(..), Property(..), Result(..))
+import Test.Inspection (Obligation(..), Equivalence (..), Property(..), Result(..))
 import Test.Inspection.Core
 
 -- | The plugin. It supports some options:
@@ -105,8 +105,7 @@ prettyObligation mod (Obligation {..}) result =
 
 prettyProperty :: (TH.Name -> String) -> TH.Name -> Property -> String
 prettyProperty showName target = \case
-  EqualTo n2 False -> showName target ++ " === " ++ showName n2
-  EqualTo n2 True  -> showName target ++ " ==- " ++ showName n2
+  EqualTo n2 eqv   -> showName target ++ " " ++ showEquiv eqv ++ " " ++ showName n2
   NoTypes [t]      -> showName target ++ " `hasNoType` " ++ showName t
   NoTypes ts       -> showName target ++ " mentions none of " ++ intercalate ", " (map showName ts)
   NoAllocation     -> showName target ++ " does not allocate"
@@ -114,6 +113,9 @@ prettyProperty showName target = \case
   NoTypeClasses ts -> showName target ++ " does not contain dictionary values except of " ++ intercalate ", " (map showName ts)
   NoUseOf ns       -> showName target ++ " uses none of " ++ intercalate ", " (map showName ns)
   CoreOf           -> showName target ++ " core dump" -- :)
+  where
+    showEquiv StrictEquiv              = "==="
+    showEquiv IgnoreTypesAndTicksEquiv = "==-"
 
 -- | Like show, but omit the module name if it is he current module
 showTHName :: Module -> TH.Name -> String

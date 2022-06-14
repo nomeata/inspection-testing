@@ -54,15 +54,17 @@ import GHC.Types.Tickish
 
 import qualified Data.Set as S
 import Control.Monad.State.Strict
-import Control.Monad.Trans.Maybe
 import Data.List (nub)
 import Data.Maybe
+
+import Test.Inspection (Equivalence (..))
 
 #if !MIN_VERSION_ghc(9,2,0)
 pattern Alt :: a -> b -> c -> (a, b, c)
 pattern Alt a b c = (a, b, c)
 {-# COMPLETE Alt #-}
 #endif
+
 
 type Slice = [(Var, CoreExpr)]
 
@@ -168,41 +170,47 @@ type VarPairSet = S.Set VarPair
 -- have auxiliary variables in the right order.
 -- (This is mostly to work-around the buggy CSE in GHC-8.0)
 -- It also breaks if there is shadowing.
-eqSlice :: Bool {- ^ ignore types and hpc ticks -} -> Slice -> Slice -> Bool
+eqSlice :: Equivalence -> Slice -> Slice -> Bool
 eqSlice _ slice1 slice2 | null slice1 || null slice2 = null slice1 == null slice2
   -- Mostly defensive programming (slices should not be empty)
-eqSlice it slice1 slice2
+eqSlice eqv slice1 slice2
   = step (S.singleton (fst (head slice1), fst (head slice2))) S.empty
   where
+    -- ignore types and hpc ticks
+    it :: Bool
+    it = case eqv of
+        StrictEquiv              -> False
+        IgnoreTypesAndTicksEquiv -> True
+
     step :: VarPairSet -> VarPairSet -> Bool
     step wanted done
         | wanted `S.isSubsetOf` done
         = True -- done
         | (x,y) : _ <- S.toList (wanted `S.difference` done)
-        , (Just _, wanted') <- runState (runMaybeT (equate x y)) wanted
+        , Just (_, wanted') <- runStateT (equate x y) wanted
         = step wanted' (S.insert (x,y) done)
         | otherwise
         = False
 
 
-    equate :: Var -> Var -> MaybeT (State VarPairSet) ()
+    equate :: Var -> Var -> StateT VarPairSet Maybe ()
     equate x y
         | Just e1 <- lookup x slice1
         , Just x' <- essentiallyVar e1
         , x' `elem` map fst slice1
-        = lift $ modify (S.insert (x',y))
+        = modify (S.insert (x',y))
         | Just e2 <- lookup y slice2
         , Just y' <- essentiallyVar e2
         , y' `elem` map fst slice2
-        = lift $ modify (S.insert (x,y'))
+        = modify (S.insert (x,y'))
         | Just e1 <- lookup x slice1
         , Just e2 <- lookup y slice2
         = go (mkRnEnv2 emptyInScopeSet) e1 e2
     equate _ _ = mzero
 
-    equated :: Var -> Var -> MaybeT (State VarPairSet) ()
+    equated :: Var -> Var -> StateT VarPairSet Maybe ()
     equated x y | x == y = return ()
-    equated x y = lift $ modify (S.insert (x,y))
+    equated x y = modify (S.insert (x,y))
 
     essentiallyVar :: CoreExpr -> Maybe Var
     essentiallyVar (App e a)  | it, isTyCoArg a = essentiallyVar e
@@ -215,7 +223,7 @@ eqSlice it slice1 slice2
     essentiallyVar (Tick HpcTick{} e) | it      = essentiallyVar e
     essentiallyVar _                            = Nothing
 
-    go :: RnEnv2 -> CoreExpr -> CoreExpr -> MaybeT (State (S.Set (Var,Var))) ()
+    go :: RnEnv2 -> CoreExpr -> CoreExpr -> StateT VarPairSet Maybe ()
     go env (Var v1) (Var v2) | rnOccL env v1 == rnOccR env v2 = pure ()
                              | otherwise = equated v1 v2
     go _   (Lit lit1)    (Lit lit2)        = guard $ lit1 == lit2
