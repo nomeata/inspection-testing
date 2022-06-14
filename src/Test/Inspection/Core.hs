@@ -57,11 +57,14 @@ import Control.Monad.State.Strict
 import Data.List (nub)
 import Data.Maybe
 
+import Test.Inspection (Equivalence (..))
+
 #if !MIN_VERSION_ghc(9,2,0)
 pattern Alt :: a -> b -> c -> (a, b, c)
 pattern Alt a b c = (a, b, c)
 {-# COMPLETE Alt #-}
 #endif
+
 
 type Slice = [(Var, CoreExpr)]
 
@@ -167,12 +170,18 @@ type VarPairSet = S.Set VarPair
 -- have auxiliary variables in the right order.
 -- (This is mostly to work-around the buggy CSE in GHC-8.0)
 -- It also breaks if there is shadowing.
-eqSlice :: Bool {- ^ ignore types and hpc ticks -} -> Slice -> Slice -> Bool
+eqSlice :: Equivalence -> Slice -> Slice -> Bool
 eqSlice _ slice1 slice2 | null slice1 || null slice2 = null slice1 == null slice2
   -- Mostly defensive programming (slices should not be empty)
-eqSlice it slice1 slice2
+eqSlice eqv slice1 slice2
   = step (S.singleton (fst (head slice1), fst (head slice2))) S.empty
   where
+    -- ignore types and hpc ticks
+    it :: Bool
+    it = case eqv of
+        StrictEquiv              -> False
+        IgnoreTypesAndTicksEquiv -> True
+
     step :: VarPairSet -> VarPairSet -> Bool
     step wanted done
         | wanted `S.isSubsetOf` done
