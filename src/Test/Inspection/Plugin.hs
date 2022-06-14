@@ -116,6 +116,7 @@ prettyProperty showName target = \case
   where
     showEquiv StrictEquiv              = "==="
     showEquiv IgnoreTypesAndTicksEquiv = "==-"
+    showEquiv UnorderedLetsEquiv       = "==~"
 
 -- | Like show, but omit the module name if it is he current module
 showTHName :: Module -> TH.Name -> String
