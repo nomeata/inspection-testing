@@ -81,6 +81,8 @@ On GHC < 8.4, you have to explicitly load the plugin:
 -- mnemonic convenience functions like '(===)' or 'hasNoType'.
 --
 -- The obligation needs to be passed to 'inspect' or 'inspectTest'.
+--
+-- @since 0.1
 data Obligation = Obligation
     { target      :: Name
         -- ^ The target of a test obligation; invariably the name of a local
@@ -99,10 +101,14 @@ data Obligation = Obligation
     , storeResult :: Maybe String
         -- ^ If this is 'Nothing', then report errors during compilation.
         -- Otherwise, update the top-level definition with this name.
+        --
+        -- @since 0.2
     }
     deriving Data
 
 -- | Properties of the obligation target to be checked.
+--
+-- @since 0.1
 data Property
     -- | Are the two functions equal?
     --
@@ -118,22 +124,32 @@ data Property
 
     -- | Do none of these types appear anywhere in the definition of the function
     -- (neither locally bound nor passed as arguments)
+    --
+    -- @since 0.3
     | NoTypes [Name]
 
     -- | Does this function perform no heap allocations.
     | NoAllocation
 
     -- | Does this value contain dictionaries (/except/ of the listed classes).
+    --
+    -- @since 0.3
     | NoTypeClasses [Name]
 
     -- | Does not contain this value (in terms or patterns)
+    --
+    -- @since 0.4.1
     | NoUseOf [Name]
 
     -- | Always satisfied, but dumps the value in non-quiet mode.
+    --
+    -- @since 0.4.2
     | CoreOf
     deriving Data
 
 -- | Equivalence of terms.
+--
+-- @since 0.5
 data Equivalence
     = StrictEquiv               -- ^ strict term equality
     | IgnoreTypesAndTicksEquiv  -- ^ ignore types and hpc ticks during the comparison
@@ -142,6 +158,8 @@ data Equivalence
 
 -- | Creates an inspection obligation for the given function name
 -- with default values for the optional fields.
+--
+-- @since 0.1
 mkObligation :: Name -> Property -> Obligation
 mkObligation target prop = Obligation
     { target = target
@@ -158,6 +176,8 @@ These convenience functions create common test obligations directly.
 -}
 
 -- | Declare two functions to be equal (see 'EqualTo')
+--
+-- @since 0.1
 (===) :: Name -> Name -> Obligation
 (===) = mkEquality False StrictEquiv
 infix 9 ===
@@ -165,30 +185,40 @@ infix 9 ===
 -- | Declare two functions to be equal, but ignoring
 -- type lambdas, type arguments, type casts and hpc ticks (see 'EqualTo').
 -- Note that @-fhpc@ can prevent some optimizations; build without for more reliable analysis.
+--
+-- @since 0.1.1
 (==-) :: Name -> Name -> Obligation
 (==-) = mkEquality False IgnoreTypesAndTicksEquiv
 infix 9 ==-
 
 -- | Declare two functions to be equal as @('==-')@ but also ignoring
 -- let bindings ordering (see 'EqualTo').
+--
+-- @since 0.5
 (==~) :: Name -> Name -> Obligation
 (==~) = mkEquality False UnorderedLetsEquiv
 infix 9 ==~
 
 -- | Declare two functions to be equal, but expect the test to fail (see 'EqualTo' and 'expectFail')
 -- (This is useful for documentation purposes, or as a TODO list.)
+--
+-- @since 0.1
 (=/=) :: Name -> Name -> Obligation
 (=/=) = mkEquality True StrictEquiv
 infix 9 =/=
 
 -- | Declare two functions to be equal up to types (see '(==-)'),
--- but expect the test to fail (see 'expectFail'),
+-- but expect the test to fail (see 'expectFail').
+--
+-- @since 0.4.3.0
 (=/-) :: Name -> Name -> Obligation
 (=/-) = mkEquality False IgnoreTypesAndTicksEquiv
 infix 9 =/-
 
 -- | Declare two functions to be equal up to let binding ordering (see '(==~)'),
--- but expect the test to fail (see 'expectFail'),
+-- but expect the test to fail (see 'expectFail').
+--
+-- @since 0.5
 (=/~) :: Name -> Name -> Obligation
 (=/~) = mkEquality False UnorderedLetsEquiv
 infix 9 =/~
@@ -204,6 +234,8 @@ mkEquality expectFail ignore_types n1 n2 =
 -- pattern-bound) has a type that contains the given type constructor.
 --
 -- @'inspect' $ fusedFunction ``hasNoType`` ''[]@
+--
+-- @since 0.1
 hasNoType :: Name -> Name -> Obligation
 hasNoType n tn = mkObligation n (NoTypes [tn])
 
@@ -212,6 +244,8 @@ hasNoType n tn = mkObligation n (NoTypes [tn])
 -- "GHC.Generics".
 --
 -- @inspect $ hasNoGenerics genericFunction@
+--
+-- @since 0.3
 hasNoGenerics :: Name -> Obligation
 hasNoGenerics n =
     mkObligation n
@@ -225,12 +259,16 @@ hasNoGenerics n =
 -- pattern-bound) has a type that contains a type that mentions a type class.
 --
 -- @'inspect' $ 'hasNoTypeClasses' specializedFunction@
+--
+-- @since 0.3
 hasNoTypeClasses :: Name -> Obligation
 hasNoTypeClasses n = hasNoTypeClassesExcept n []
 
 -- | A variant of 'hasNoTypeClasses', which white-lists some type-classes.
 --
 -- @'inspect' $ fieldLens ``hasNoTypeClassesExcept`` [''Functor]@
+--
+-- @since 0.3
 hasNoTypeClassesExcept :: Name -> [Name] -> Obligation
 hasNoTypeClassesExcept n tns = mkObligation n (NoTypeClasses tns)
 
@@ -238,6 +276,8 @@ hasNoTypeClassesExcept n tns = mkObligation n (NoTypeClasses tns)
 -- variable (either in terms or -- if it is a constructor -- in patterns).
 --
 -- @'inspect' $ foo ``doesNotUse`` 'error@
+--
+-- @since 0.4.1
 doesNotUse :: Name -> Name -> Obligation
 doesNotUse n ns = mkObligation n (NoUseOf [ns])
 
@@ -247,6 +287,7 @@ doesNotUse n ns = mkObligation n (NoUseOf [ns])
 --
 -- This is useful when you need to inspect some values manually.
 --
+-- @since 0.4.2
 coreOf :: Name -> Obligation
 coreOf n = mkObligation n CoreOf
 
@@ -264,10 +305,14 @@ inspectCommon annTarget obl = do
 -- | As seen in the example above, the entry point to inspection testing is the
 -- 'inspect' function, to which you pass an 'Obligation'.
 -- It will report test failures at compile time.
+--
+-- @since 0.1
 inspect :: Obligation -> Q [Dec]
 inspect = inspectCommon ModuleAnnotation
 
 -- | The result of 'inspectTest', which has a more or less helpful text message
+--
+-- @since 0.2
 data Result = Failure String | Success String
     deriving Show
 
@@ -282,6 +327,8 @@ didNotRunPluginError = lazy (error "Test.Inspection.Plugin did not run")
 -- This variant ignores the 'expectFail' field of the obligation. Instead,
 -- it is expected that you use the corresponding functionality in your test
 -- framework (e.g. [@tasty-expected-failure@](https://hackage.haskell.org/package/tasty-expected-failure))
+--
+-- @since 0.2
 inspectTest :: Obligation -> Q Exp
 inspectTest obl = do
     nameS <- genName
