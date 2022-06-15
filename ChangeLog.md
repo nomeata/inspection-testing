@@ -1,5 +1,10 @@
 # Revision history for inspection-testing
 
+## 0.5 -- 2022-06-15
+
+* New equivalence `==~` that accepts different order of bindings in lets. (thanks @phadej)
+* When printing terms that differ, common up a common prefix of lambdas (thanks @phadej)
+
 ## 0.4.6.1 -- 2022-05-20
 
 * Support GHC 9.4 (thanks @parsonsmatt)
