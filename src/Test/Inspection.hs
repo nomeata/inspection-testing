@@ -26,7 +26,8 @@ module Test.Inspection (
     Obligation(..), mkObligation, Equivalence (..), Property(..),
     -- * Convenience functions
     -- $convenience
-    (===), (==-), (=/=), (=/-), hasNoType, hasNoGenerics,
+    (===), (==-), (=/=), (=/-), (==~), (=/~),
+    hasNoType, hasNoGenerics,
     hasNoTypeClasses, hasNoTypeClassesExcept,
     doesNotUse, coreOf,
 ) where
@@ -136,6 +137,7 @@ data Property
 data Equivalence
     = StrictEquiv               -- ^ strict term equality
     | IgnoreTypesAndTicksEquiv  -- ^ ignore types and hpc ticks during the comparison
+    | UnorderedLetsEquiv        -- ^ allow permuted let bindings, ignore types and hpc tick during comparison
     deriving Data
 
 -- | Creates an inspection obligation for the given function name
@@ -167,6 +169,12 @@ infix 9 ===
 (==-) = mkEquality False IgnoreTypesAndTicksEquiv
 infix 9 ==-
 
+-- | Declare two functions to be equal as @('==-')@ but also ignoring
+-- let bindings ordering (see 'EqualTo').
+(==~) :: Name -> Name -> Obligation
+(==~) = mkEquality False UnorderedLetsEquiv
+infix 9 ==~
+
 -- | Declare two functions to be equal, but expect the test to fail (see 'EqualTo' and 'expectFail')
 -- (This is useful for documentation purposes, or as a TODO list.)
 (=/=) :: Name -> Name -> Obligation
@@ -178,6 +186,12 @@ infix 9 =/=
 (=/-) :: Name -> Name -> Obligation
 (=/-) = mkEquality False IgnoreTypesAndTicksEquiv
 infix 9 =/-
+
+-- | Declare two functions to be equal up to let binding ordering (see '(==~)'),
+-- but expect the test to fail (see 'expectFail'),
+(=/~) :: Name -> Name -> Obligation
+(=/~) = mkEquality False UnorderedLetsEquiv
+infix 9 =/~
 
 mkEquality :: Bool -> Equivalence -> Name -> Name -> Obligation
 mkEquality expectFail ignore_types n1 n2 =

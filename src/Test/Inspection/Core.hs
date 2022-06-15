@@ -1,6 +1,6 @@
 -- | This module implements some analyses of Core expressions necessary for
 -- "Test.Inspection". Normally, users of this package can ignore this module.
-{-# LANGUAGE CPP, FlexibleContexts, PatternSynonyms #-}
+{-# LANGUAGE CPP, FlexibleContexts, PatternSynonyms, MultiWayIf #-}
 module Test.Inspection.Core
   ( slice
   , pprSlice
@@ -22,6 +22,7 @@ import GHC.Types.Id
 import GHC.Types.Name
 import GHC.Types.Literal
 import GHC.Types.Var.Env
+import GHC.Types.Unique
 import GHC.Utils.Outputable as Outputable
 import GHC.Core.Ppr
 import GHC.Core.Subst
@@ -45,6 +46,7 @@ import PprCore
 import Coercion
 import Util
 import DataCon
+import Unique
 import TyCon (TyCon, isClassTyCon)
 #endif
 
@@ -54,10 +56,17 @@ import GHC.Types.Tickish
 
 import qualified Data.Set as S
 import Control.Monad.State.Strict
-import Data.List (nub)
+import Data.List (nub, intercalate)
 import Data.Maybe
 
 import Test.Inspection (Equivalence (..))
+
+-- Uncomment to enable debug traces
+-- import Debug.Trace
+
+tracePut :: Monad m => Int -> String -> String -> m ()
+-- tracePut lv name msg = traceM $ replicate lv ' ' ++ name ++ ": " ++ msg
+tracePut _  _    _ = return ()
 
 #if !MIN_VERSION_ghc(9,2,0)
 pattern Alt :: a -> b -> c -> (a, b, c)
@@ -174,43 +183,75 @@ eqSlice :: Equivalence -> Slice -> Slice -> Bool
 eqSlice _ slice1 slice2 | null slice1 || null slice2 = null slice1 == null slice2
   -- Mostly defensive programming (slices should not be empty)
 eqSlice eqv slice1 slice2
-  = step (S.singleton (fst (head slice1), fst (head slice2))) S.empty
+    -- slices are equal if there exist any result with no "unification" obligations left.
+    = any (S.null . snd) results
   where
     -- ignore types and hpc ticks
     it :: Bool
     it = case eqv of
         StrictEquiv              -> False
         IgnoreTypesAndTicksEquiv -> True
+        UnorderedLetsEquiv       -> True
 
-    step :: VarPairSet -> VarPairSet -> Bool
-    step wanted done
-        | wanted `S.isSubsetOf` done
-        = True -- done
-        | (x,y) : _ <- S.toList (wanted `S.difference` done)
-        , Just (_, wanted') <- runStateT (equate x y) wanted
-        = step wanted' (S.insert (x,y) done)
-        | otherwise
-        = False
+    -- unordered lets
+    ul :: Bool
+    ul = case eqv of
+        StrictEquiv              -> False
+        IgnoreTypesAndTicksEquiv -> False
+        UnorderedLetsEquiv       -> True
 
+    -- results. If there are no pairs to be equated, all is fine.
+    results :: [((), VarPairSet)]
+    results = runStateT (loop' (mkRnEnv2 emptyInScopeSet) S.empty (fst (head slice1)) (fst (head slice2))) S.empty
 
-    equate :: Var -> Var -> StateT VarPairSet Maybe ()
-    equate x y
-        | Just e1 <- lookup x slice1
-        , Just x' <- essentiallyVar e1
-        , x' `elem` map fst slice1
-        = modify (S.insert (x',y))
-        | Just e2 <- lookup y slice2
-        , Just y' <- essentiallyVar e2
-        , y' `elem` map fst slice2
-        = modify (S.insert (x,y'))
-        | Just e1 <- lookup x slice1
-        , Just e2 <- lookup y slice2
-        = go (mkRnEnv2 emptyInScopeSet) e1 e2
-    equate _ _ = mzero
+    -- while there are obligations left, try to equate them.
+    loop :: RnEnv2 -> VarPairSet -> StateT VarPairSet [] ()
+    loop env done = do
+        vars <- get
+        case S.minView vars of
+            Nothing -> return () -- nothing to do, done.
+            Just ((x, y), vars') -> do
+                put vars'
+                if (x, y) `S.member` done
+                then loop env done
+                else loop' env done x y
 
-    equated :: Var -> Var -> StateT VarPairSet Maybe ()
-    equated x y | x == y = return ()
-    equated x y = modify (S.insert (x,y))
+    loop' :: RnEnv2 -> VarPairSet -> Var -> Var -> StateT VarPairSet [] ()
+    loop' env done x y = do
+        tracePut 0 "TOP" (varToString x ++ " =?= " ++ varToString y)
+        tracePut 0 "DONESET" (showVarPairSet done)
+
+        -- if x or y expressions are essentially a variable x' or y' respectively
+        -- add an obligation to check x' = y (or x = y').
+        if | Just e1 <- lookup x slice1
+           , Just x' <- essentiallyVar e1
+           , x' `elem` map fst slice1
+           -> do modify' (S.insert (x', y))
+                 loop env done
+
+           | Just e2 <- lookup y slice2
+           , Just y' <- essentiallyVar e2
+           , y' `elem` map fst slice2
+           -> do modify' (S.insert (x, y'))
+                 loop env done
+
+            -- otherwise if neither x and y expressions are variables
+            -- 1. compare the expressions (already assuming that x and y are equal)
+            -- 2. comparison may create new obligations, loop.
+           | Just e1 <- lookup x slice1
+           , Just e2 <- lookup y slice2
+           -> do
+               let env' = rnBndr2 env x y
+                   done' = S.insert (x, y) done
+
+               go 0 env' e1 e2
+               loop env' done'
+
+            -- and finally, if x or y are not in the slice, we abort.
+           | otherwise
+           -> do
+              tracePut 0 "TOP" (varToString x ++ " =?= " ++ varToString y ++ " NOT IN SLICES")
+              mzero
 
     essentiallyVar :: CoreExpr -> Maybe Var
     essentiallyVar (App e a)  | it, isTyCoArg a = essentiallyVar e
@@ -223,64 +264,91 @@ eqSlice eqv slice1 slice2
     essentiallyVar (Tick HpcTick{} e) | it      = essentiallyVar e
     essentiallyVar _                            = Nothing
 
-    go :: RnEnv2 -> CoreExpr -> CoreExpr -> StateT VarPairSet Maybe ()
-    go env (Var v1) (Var v2) | rnOccL env v1 == rnOccR env v2 = pure ()
-                             | otherwise = equated v1 v2
-    go _   (Lit lit1)    (Lit lit2)        = guard $ lit1 == lit2
-    go env (Type t1)     (Type t2)         = guard $ eqTypeX env t1 t2
-    go env (Coercion co1) (Coercion co2)   = guard $ eqCoercionX env co1 co2
+    go :: Int -> RnEnv2 -> CoreExpr -> CoreExpr -> StateT VarPairSet [] ()
+    go lv env (Var v1) (Var v2) = do
+        if | v1 == v2 -> do
+            tracePut lv "VAR" (varToString v1 ++ " =?= " ++ varToString v2 ++ " SAME")
+            return ()
+           | rnOccL env v1 == rnOccR env v2 -> do
+            tracePut lv "VAR" (varToString v1 ++ " =?= " ++ varToString v2 ++ " IN ENV")
+            return ()
+           | otherwise -> do
+            tracePut lv "VAR" (varToString v1 ++ " =?= " ++ varToString v2 ++ " OBLIGATION")
+            modify (S.insert (v1, v2))
 
-    go env (Cast e1 _) e2 | it             = go env e1 e2
-    go env e1 (Cast e2 _) | it             = go env e1 e2
+    go lv _   (Lit lit1)    (Lit lit2)        = do
+        tracePut lv "LIT" "???" -- no Show for Literal :(
+        guard $ lit1 == lit2
+
+    go _  env (Type t1)     (Type t2)         = guard $ eqTypeX env t1 t2
+    go _  env (Coercion co1) (Coercion co2)   = guard $ eqCoercionX env co1 co2
+
+    go lv env (Cast e1 _) e2 | it             = go lv env e1 e2
+    go lv env e1 (Cast e2 _) | it             = go lv env e1 e2
 #if MIN_VERSION_ghc(9,0,0)
-    go env (Case s _ _ [Alt _ _ e1]) e2 | it, isUnsafeEqualityProof s = go env e1 e2
-    go env e1 (Case s _ _ [Alt _ _ e2]) | it, isUnsafeEqualityProof s = go env e1 e2
+    go lv env (Case s _ _ [Alt _ _ e1]) e2 | it, isUnsafeEqualityProof s = go lv env e1 e2
+    go lv env e1 (Case s _ _ [Alt _ _ e2]) | it, isUnsafeEqualityProof s = go lv env e1 e2
 #endif
-    go env (Cast e1 co1) (Cast e2 co2)     = do guard (eqCoercionX env co1 co2)
-                                                go env e1 e2
+    go lv env (Cast e1 co1) (Cast e2 co2)     = traceBlock lv "CAST" "" $ \lv -> do
+                                                   guard (eqCoercionX env co1 co2)
+                                                   go lv env e1 e2
 
-    go env (App e1 a) e2 | it, isTyCoArg a = go env e1 e2
-    go env e1 (App e2 a) | it, isTyCoArg a = go env e1 e2
-    go env (App f1 a1)   (App f2 a2)       = go env f1 f2 >> go env a1 a2
-    go env (Tick HpcTick{} e1) e2 | it     = go env e1 e2
-    go env e1 (Tick HpcTick{} e2) | it     = go env e1 e2
-    go env (Tick n1 e1)  (Tick n2 e2)      = guard (go_tick env n1 n2) >> go env e1 e2
+    go lv env (App e1 a) e2 | it, isTyCoArg a = go lv env e1 e2
+    go lv env e1 (App e2 a) | it, isTyCoArg a = go lv env e1 e2
+    go lv env (App f1 a1)   (App f2 a2)       = traceBlock lv "APP" "" $ \lv -> do
+                                                   go lv env f1 f2
+                                                   go lv env a1 a2
+    go lv env (Tick HpcTick{} e1) e2 | it     = go lv env e1 e2
+    go lv env e1 (Tick HpcTick{} e2) | it     = go lv env e1 e2
+    go lv env (Tick n1 e1)  (Tick n2 e2)      = traceBlock lv "TICK" "" $ \lv -> do
+                                                   guard (go_tick env n1 n2)
+                                                   go lv env e1 e2
 
-    go env (Lam b e1) e2 | it, isTyCoVar b = go env e1 e2
-    go env e1 (Lam b e2) | it, isTyCoVar b = go env e1 e2
-    go env (Lam b1 e1)  (Lam b2 e2)
-      = do guard (it || eqTypeX env (varType b1) (varType b2))
-                -- False for Id/TyVar combination
-           go (rnBndr2 env b1 b2) e1 e2
+    go lv env (Lam b e1) e2 | it, isTyCoVar b = go lv env e1 e2
+    go lv env e1 (Lam b e2) | it, isTyCoVar b = go lv env e1 e2
+    go lv env (Lam b1 e1)  (Lam b2 e2)        = traceBlock lv "LAM" (varToString b1 ++ " ~ " ++ varToString b2) $ \lv -> do
+           guard (it || eqTypeX env (varType b1) (varType b2))
+           go lv (rnBndr2 env b1 b2) e1 e2
 
-    go env (Let (NonRec v1 r1) e1) (Let (NonRec v2 r2) e2)
-      = do go env r1 r2  -- No need to check binder types, since RHSs match
-           go (rnBndr2 env v1 v2) e1 e2
+    go lv env e1@(Let _ _) e2@(Let _ _)
+      | ul
+      , (ps1, e1') <- peelLets e1
+      , (ps2, e2') <- peelLets e2
+      = traceBlock lv "LET" (showVars ps1 ++ " ~ " ++ showVars ps2) $ \lv -> do
+           guard $ equalLength ps1 ps2
+           env' <- goBinds lv env ps1 ps2
+           go lv env' e1' e2'
 
-    go env (Let (Rec ps1) e1) (Let (Rec ps2) e2)
+    go lv env (Let (NonRec v1 r1) e1) (Let (NonRec v2 r2) e2)
+      = do go lv env r1 r2  -- No need to check binder types, since RHSs match
+           go lv (rnBndr2 env v1 v2) e1 e2
+
+    go lv env (Let (Rec ps1) e1) (Let (Rec ps2) e2)
       = do guard $ equalLength ps1 ps2
-           sequence_ $ zipWith (go env') rs1 rs2
-           go env' e1 e2
+           sequence_ $ zipWith (go lv env') rs1 rs2
+           go lv env' e1 e2
       where
         (bs1,rs1) = unzip ps1
         (bs2,rs2) = unzip ps2
         env' = rnBndrs2 env bs1 bs2
 
-    go env (Case e1 b1 t1 a1) (Case e2 b2 t2 a2)
+    go lv env (Case e1 b1 t1 a1) (Case e2 b2 t2 a2)
       | null a1   -- See Note [Empty case alternatives] in TrieMap
       = do guard (null a2)
-           go env e1 e2
+           go lv env e1 e2
            guard (it || eqTypeX env t1 t2)
       | otherwise
       = do guard $ equalLength a1 a2
-           go env e1 e2
-           sequence_ $ zipWith (go_alt (rnBndr2 env b1 b2)) a1 a2
+           go lv env e1 e2
+           sequence_ $ zipWith (go_alt lv (rnBndr2 env b1 b2)) a1 a2
 
-    go _ _ _ = guard False
+    go lv _ e1 e2 = do
+        tracePut lv "FAIL" (conToString e1 ++ " =/= " ++ conToString e2)
+        mzero
 
     -----------
-    go_alt env (Alt c1 bs1 e1) (Alt c2 bs2 e2)
-      = guard (c1 == c2) >> go (rnBndrs2 env bs1 bs2) e1 e2
+    go_alt lv env (Alt c1 bs1 e1) (Alt c2 bs2 e2)
+      = guard (c1 == c2) >> go lv (rnBndrs2 env bs1 bs2) e1 e2
 
 #if MIN_VERSION_ghc(9,2,0)
     go_tick :: RnEnv2 -> CoreTickish -> CoreTickish -> Bool
@@ -292,7 +360,67 @@ eqSlice eqv slice1 slice2
           = lid == rid  &&  map (rnOccL env) lids == map (rnOccR env) rids
     go_tick _ l r = l == r
 
+    peelLets (Let (NonRec v r) e) = let (xs, e') = peelLets e in ((v,r):xs, e')
+    peelLets (Let (Rec bs) e)     = let (xs, e') = peelLets e in (bs ++ xs, e')
+    peelLets e                    = ([], e)
 
+    goBinds :: Int -> RnEnv2 -> [(Var, CoreExpr)] -> [(Var, CoreExpr)] -> StateT VarPairSet [] RnEnv2
+    goBinds _  env []           []    = return env
+    goBinds _  _   []           (_:_) = mzero
+    goBinds lv env ((v1,b1):xs) ys'   = do
+        -- select a binding
+        ((v2,b2), ys) <- lift (choices ys')
+
+        traceBlock lv "LET*" (varToString v1 ++ " =?= " ++ varToString v2) $ \lv ->
+            go lv env b1 b2
+
+        -- if match succeeds, delete it from the obligations
+        modify (S.delete (v1, v2))
+        -- continue with the rest of bindings, adding a pair as matching one.
+        goBinds lv (rnBndr2 env v1 v2) xs ys
+
+
+traceBlock :: Monad m => Int -> String -> String -> (Int -> m ()) -> m ()
+traceBlock lv name msg action = do
+    tracePut lv name msg
+    action (lv + 1)
+    tracePut lv name $ msg ++ " OK"
+
+showVars :: [(Var, a)] -> String
+showVars xs = intercalate ", " [ varToString x | (x, _) <- xs ]
+
+showVarPairSet :: VarPairSet -> String
+showVarPairSet xs = intercalate ", " [ varToString x ++ " ~ " ++ varToString y | (x, y) <- S.toList xs ]
+
+varToString :: Var -> String
+varToString v = occNameString (occName (tyVarName v)) ++ "_" ++ show (getUnique v)
+-- using tyVarName as varName is ambiguous.
+
+conToString :: CoreExpr -> [Char]
+conToString Var {}      = "Var"
+conToString Lit {}      = "Lit"
+conToString App {}      = "App"
+conToString Lam {}      = "Lam"
+conToString Let {}      = "Let"
+conToString Case {}     = "Case"
+conToString Cast {}     = "Cast"
+conToString Tick {}     = "Tick"
+conToString Type {}     = "Type"
+conToString Coercion {} = "Coercion"
+
+-- |
+--
+-- >>> choices ""
+-- []
+--
+-- >>> choices "abcde"
+-- [('a',"bcde"),('b',"acde"),('c',"abde"),('d',"abce"),('e',"abcd")]
+--
+choices :: [a] -> [(a, [a])]
+choices = go id where
+    go :: ([a] -> [a]) -> [a] -> [(a, [a])]
+    go _ [] = []
+    go f (x:xs) = (x, f xs) : go (f . (x :)) xs
 
 -- | Returns @True@ if the given core expression mentions no type constructor
 -- anywhere that has the given name.
