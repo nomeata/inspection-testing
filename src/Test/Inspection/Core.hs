@@ -54,6 +54,10 @@ import TyCon (TyCon, isClassTyCon)
 import GHC.Types.Tickish
 #endif
 
+#if MIN_VERSION_ghc(9,6,0)
+import GHC.Core.TyCo.Compare (eqTypeX)
+#endif
+
 import qualified Data.Set as S
 import Control.Monad (guard, unless, mzero)
 import Control.Monad.Trans.Class (lift)
