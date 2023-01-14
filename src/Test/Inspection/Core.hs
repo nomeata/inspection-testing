@@ -55,7 +55,9 @@ import GHC.Types.Tickish
 #endif
 
 import qualified Data.Set as S
-import Control.Monad.State.Strict
+import Control.Monad (guard, unless, mzero)
+import Control.Monad.Trans.Class (lift)
+import Control.Monad.State.Strict (StateT, runStateT, execState, modify, modify', put, get, gets)
 import Data.List (nub, intercalate)
 import Data.Maybe
 
