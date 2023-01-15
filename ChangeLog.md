@@ -1,5 +1,9 @@
 # Revision history for inspection-testing
 
+## 0.5.0.1 -- 2023-01-15
+
+* Support mtl-2.3 and GHC 9.6 (thanks Bodigrim)
+
 ## 0.5 -- 2022-06-15
 
 * New equivalence `==~` that accepts different order of bindings in lets. (thanks @phadej)
