@@ -356,13 +356,8 @@ eqSlice eqv slice1 slice2
     go_alt lv env (Alt c1 bs1 e1) (Alt c2 bs2 e2)
       = guard (c1 == c2) >> go lv (rnBndrs2 env bs1 bs2) e1 e2
 
-#if MIN_VERSION_ghc(9,2,0)
     go_tick :: RnEnv2 -> CoreTickish -> CoreTickish -> Bool
-    go_tick env (Breakpoint _ lid lids) (Breakpoint _ rid rids)
-#else
-    go_tick :: RnEnv2 -> Tickish Id -> Tickish Id -> Bool
-    go_tick env (Breakpoint lid lids) (Breakpoint rid rids)
-#endif
+    go_tick env Breakpoint{ breakpointId = lid, breakpointFVs = lids } Breakpoint{ breakpointId = rid, breakpointFVs = rids }
           = lid == rid  &&  map (rnOccL env) lids == map (rnOccR env) rids
     go_tick _ l r = l == r
 
@@ -385,6 +380,9 @@ eqSlice eqv slice1 slice2
         -- continue with the rest of bindings, adding a pair as matching one.
         goBinds lv (rnBndr2 env v1 v2) xs ys
 
+#if !MIN_VERSION_ghc(9,2,0)
+type CoreTickish = Tickish Id
+#endif
 
 traceBlock :: Monad m => Int -> String -> String -> (Int -> m ()) -> m ()
 traceBlock lv name msg action = do
