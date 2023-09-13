@@ -13,6 +13,7 @@ module Test.Inspection.Core
   ) where
 
 #if MIN_VERSION_ghc(9,0,0)
+import GHC.Builtin.Types (isCTupleTyConName)
 import GHC.Core
 import GHC.Core.Utils
 import GHC.Core.TyCo.Rep
@@ -31,6 +32,7 @@ import GHC.Utils.Misc
 import GHC.Core.DataCon
 import GHC.Core.TyCon (TyCon, isClassTyCon)
 #else
+import TysWiredIn (isCTupleTyConName)
 import CoreSyn
 import CoreUtils
 import CoreSubst
@@ -552,7 +554,7 @@ doesNotAllocate slice = listToMaybe [ (v,e) | (v,e) <- slice, not (go (idArity v
 
 doesNotContainTypeClasses :: Slice -> [Name] -> Maybe (Var, CoreExpr, [TyCon])
 doesNotContainTypeClasses slice tcNs
-    = allTyCons (\tc -> not (isClassTyCon tc) || any (getName tc ==) tcNs) slice
+    = allTyCons (\tc -> not (isClassTyCon tc) || isCTupleTyConName (getName tc) || any (getName tc ==) tcNs) slice
 
 rename :: [(Var, Var)] -> CoreExpr -> CoreExpr
 rename rn = substExpr' sub where
