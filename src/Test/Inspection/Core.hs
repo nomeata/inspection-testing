@@ -32,7 +32,7 @@ import GHC.Utils.Misc
 import GHC.Core.DataCon
 import GHC.Core.TyCon (TyCon, isClassTyCon)
 #else
-import Builtin.Types (isCTupleTyConName)  -- only guessing the module name
+import TysWiredIn (isCTupleTyConName)
 import CoreSyn
 import CoreUtils
 import CoreSubst
