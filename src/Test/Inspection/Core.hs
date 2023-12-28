@@ -188,9 +188,11 @@ type VarPairSet = S.Set VarPair
 -- (This is mostly to work-around the buggy CSE in GHC-8.0)
 -- It also breaks if there is shadowing.
 eqSlice :: Equivalence -> Slice -> Slice -> Bool
-eqSlice _ slice1 slice2 | null slice1 || null slice2 = null slice1 == null slice2
+eqSlice _ [] [] = True
+eqSlice _ _ [] = False
+eqSlice _ [] _ = False
   -- Mostly defensive programming (slices should not be empty)
-eqSlice eqv slice1 slice2
+eqSlice eqv slice1@((head1, _) : _) slice2@((head2, _) : _)
     -- slices are equal if there exist any result with no "unification" obligations left.
     = any (S.null . snd) results
   where
@@ -210,7 +212,7 @@ eqSlice eqv slice1 slice2
 
     -- results. If there are no pairs to be equated, all is fine.
     results :: [((), VarPairSet)]
-    results = runStateT (loop' (mkRnEnv2 emptyInScopeSet) S.empty (fst (head slice1)) (fst (head slice2))) S.empty
+    results = runStateT (loop' (mkRnEnv2 emptyInScopeSet) S.empty head1 head2) S.empty
 
     -- while there are obligations left, try to equate them.
     loop :: RnEnv2 -> VarPairSet -> StateT VarPairSet [] ()

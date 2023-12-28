@@ -3,13 +3,14 @@
 {-# OPTIONS_GHC -O -fplugin-opt=Test.Inspection.Plugin:quiet -Wno-overlapping-patterns #-}
 module NS_NP (main) where
 
+import Data.Kind
 import Test.Inspection
 
-data NS (f :: k -> *) (xs :: [k]) where
+data NS (f :: k -> Type) (xs :: [k]) where
   Z :: f x -> NS f (x : xs)
   S :: !(NS f xs) -> NS f (x : xs)
 
-data NP (f :: k -> *) (xs :: [k]) where
+data NP (f :: k -> Type) (xs :: [k]) where
   Nil  :: NP f '[]
   (:*) :: f x -> !(NP f xs) -> NP f (x : xs)
 
