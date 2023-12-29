@@ -1,5 +1,9 @@
 # Revision history for inspection-testing
 
+## 0.5.0.3 -- 2023-12-29
+
+* Support GHC 9.10 (thanks Bodigrim)
+
 ## 0.5.0.2 -- 2023-07-10
 
 * Support GHC 9.8 (thanks Bodigrim)
