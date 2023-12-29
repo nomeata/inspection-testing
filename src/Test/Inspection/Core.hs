@@ -188,9 +188,11 @@ type VarPairSet = S.Set VarPair
 -- (This is mostly to work-around the buggy CSE in GHC-8.0)
 -- It also breaks if there is shadowing.
 eqSlice :: Equivalence -> Slice -> Slice -> Bool
-eqSlice _ slice1 slice2 | null slice1 || null slice2 = null slice1 == null slice2
+eqSlice _ [] [] = True
+eqSlice _ _ [] = False
+eqSlice _ [] _ = False
   -- Mostly defensive programming (slices should not be empty)
-eqSlice eqv slice1 slice2
+eqSlice eqv slice1@((head1, _) : _) slice2@((head2, _) : _)
     -- slices are equal if there exist any result with no "unification" obligations left.
     = any (S.null . snd) results
   where
@@ -210,7 +212,7 @@ eqSlice eqv slice1 slice2
 
     -- results. If there are no pairs to be equated, all is fine.
     results :: [((), VarPairSet)]
-    results = runStateT (loop' (mkRnEnv2 emptyInScopeSet) S.empty (fst (head slice1)) (fst (head slice2))) S.empty
+    results = runStateT (loop' (mkRnEnv2 emptyInScopeSet) S.empty head1 head2) S.empty
 
     -- while there are obligations left, try to equate them.
     loop :: RnEnv2 -> VarPairSet -> StateT VarPairSet [] ()
@@ -266,7 +268,7 @@ eqSlice eqv slice1 slice2
     essentiallyVar (Lam v e)  | it, isTyCoVar v = essentiallyVar e
     essentiallyVar (Cast e _) | it              = essentiallyVar e
 #if MIN_VERSION_ghc(9,0,0)
-    essentiallyVar (Case s _ _ [Alt _ _ e]) | it, isUnsafeEqualityProof s = essentiallyVar e
+    essentiallyVar (Case s b _ alts) | it, Just e <- isUnsafeEqualityCase s b alts = essentiallyVar e
 #endif
     essentiallyVar (Var v)                      = Just v
     essentiallyVar (Tick HpcTick{} e) | it      = essentiallyVar e
@@ -294,8 +296,8 @@ eqSlice eqv slice1 slice2
     go lv env (Cast e1 _) e2 | it             = go lv env e1 e2
     go lv env e1 (Cast e2 _) | it             = go lv env e1 e2
 #if MIN_VERSION_ghc(9,0,0)
-    go lv env (Case s _ _ [Alt _ _ e1]) e2 | it, isUnsafeEqualityProof s = go lv env e1 e2
-    go lv env e1 (Case s _ _ [Alt _ _ e2]) | it, isUnsafeEqualityProof s = go lv env e1 e2
+    go lv env (Case s b _ alts) e2 | it, Just e1 <- isUnsafeEqualityCase s b alts = go lv env e1 e2
+    go lv env e1 (Case s b _ alts) | it, Just e2 <- isUnsafeEqualityCase s b alts = go lv env e1 e2
 #endif
     go lv env (Cast e1 co1) (Cast e2 co2)     = traceBlock lv "CAST" "" $ \lv -> do
                                                    guard (eqCoercionX env co1 co2)
@@ -381,6 +383,13 @@ eqSlice eqv slice1 slice2
         modify (S.delete (v1, v2))
         -- continue with the rest of bindings, adding a pair as matching one.
         goBinds lv (rnBndr2 env v1 v2) xs ys
+
+#if !MIN_VERSION_ghc(9,9,0) && MIN_VERSION_ghc(9,0,0)
+isUnsafeEqualityCase :: CoreExpr -> Id -> [CoreAlt] -> Maybe CoreExpr
+isUnsafeEqualityCase scrut _bndr [Alt _ _ rhs]
+  | isUnsafeEqualityProof scrut = Just rhs
+isUnsafeEqualityCase _ _ _ = Nothing
+#endif
 
 #if !MIN_VERSION_ghc(9,2,0)
 type CoreTickish = Tickish Id
