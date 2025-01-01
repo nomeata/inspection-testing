@@ -272,6 +272,7 @@ eqSlice eqv slice1@((head1, _) : _) slice2@((head2, _) : _)
 #endif
     essentiallyVar (Var v)                      = Just v
     essentiallyVar (Tick HpcTick{} e) | it      = essentiallyVar e
+    essentiallyVar (Tick SourceNote{} e)        = essentiallyVar e
     essentiallyVar _                            = Nothing
 
     go :: Int -> RnEnv2 -> CoreExpr -> CoreExpr -> StateT VarPairSet [] ()
@@ -310,6 +311,8 @@ eqSlice eqv slice1@((head1, _) : _) slice2@((head2, _) : _)
                                                    go lv env a1 a2
     go lv env (Tick HpcTick{} e1) e2 | it     = go lv env e1 e2
     go lv env e1 (Tick HpcTick{} e2) | it     = go lv env e1 e2
+    go lv env (Tick SourceNote{} e1) e2       = go lv env e1 e2
+    go lv env e1 (Tick SourceNote{} e2)       = go lv env e1 e2
     go lv env (Tick n1 e1)  (Tick n2 e2)      = traceBlock lv "TICK" "" $ \lv -> do
                                                    guard (go_tick env n1 n2)
                                                    go lv env e1 e2

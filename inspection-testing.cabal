@@ -232,3 +232,13 @@ test-suite text
   if impl(ghc < 8.4)
       ghc-options:       -fplugin=Test.Inspection.Plugin
 
+test-suite dwarf
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      examples
+  main-is:             DWARF.hs
+  build-depends:       inspection-testing
+  build-depends:       base
+  default-language:    Haskell2010
+  ghc-options:         -main-is DWARF
+  if impl(ghc < 8.4)
+      ghc-options:       -fplugin=Test.Inspection.Plugin
