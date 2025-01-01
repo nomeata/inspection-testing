@@ -1,5 +1,11 @@
 # Revision history for inspection-testing
 
+## 0.6 -- 2025-01-01
+
+* Support GHC 9.10.1 (thanks Andre Van Der Merwe)
+* Support GHC 9.12 (thanks Erik de Castro Lopo)
+* Ignore SourceNote tick (thanks Potato Hatsue)
+
 ## 0.5.0.3 -- 2023-12-29
 
 * Support GHC 9.10 (thanks Bodigrim)
