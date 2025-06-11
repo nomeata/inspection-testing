@@ -1,5 +1,9 @@
 # Revision history for inspection-testing
 
+## 0.6.1 -- 2025-06-11
+
+* Improve presentation of term inequalities (thanks Oleg Grenrus)
+
 ## 0.6 -- 2025-01-01
 
 * Support GHC 9.10.1 (thanks Andre Van Der Merwe)
