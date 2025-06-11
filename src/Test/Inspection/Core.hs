@@ -1,6 +1,6 @@
 -- | This module implements some analyses of Core expressions necessary for
 -- "Test.Inspection". Normally, users of this package can ignore this module.
-{-# LANGUAGE CPP, FlexibleContexts, PatternSynonyms, MultiWayIf #-}
+{-# LANGUAGE CPP, FlexibleContexts, PatternSynonyms, MultiWayIf, ViewPatterns #-}
 module Test.Inspection.Core
   ( slice
   , pprSlice
@@ -63,8 +63,7 @@ import GHC.Core.TyCo.Compare (eqTypeX)
 
 import qualified Data.Set as S
 import Control.Monad (unless)
-import Control.Monad.Trans.Class (lift)
-import Control.Monad.State.Strict (StateT (..), execStateT, execState, modify, modify', put, get, gets)
+import Control.Monad.State.Strict (execState,  modify', gets)
 import Data.List (nub, intercalate)
 import Data.Maybe (listToMaybe, fromJust)
 import Data.Either (isRight)
@@ -72,11 +71,17 @@ import Data.Either (isRight)
 import Test.Inspection (Equivalence (..))
 
 -- Uncomment to enable debug traces
--- import Debug.Trace
+-- #define DEBUG_TRACE
+
+#ifdef DEBUG_TRACE
+import Debug.Trace
 
 tracePut :: Monad m => Int -> String -> String -> m ()
--- tracePut lv name msg = traceM $ replicate lv ' ' ++ name ++ ": " ++ msg
+tracePut lv name msg = traceM $ replicate lv ' ' ++ name ++ ": " ++ msg
+#else
+tracePut :: Monad m => Int -> String -> String -> m ()
 tracePut _  _    _ = return ()
+#endif
 
 #if !MIN_VERSION_ghc(9,2,0)
 pattern Alt :: a -> b -> c -> (a, b, c)
@@ -101,7 +106,7 @@ slice binds v
     goV v | v `S.member` local = do
         seen <- gets (v `S.member`)
         unless seen $ do
-            modify (S.insert v)
+            modify' (S.insert v)
             let e = fromJust $ lookup v binds
             go e
           | otherwise = return ()
@@ -182,9 +187,6 @@ withLessDetail sdoc = sdocWithDynFlags $ \dflags ->
 withLessDetail sdoc = withPprStyle defaultUserStyle sdoc
 #endif
 
-type VarPair = (Var, Var)
-type VarPairSet = S.Set VarPair
-
 -- | This is a heuristic, which only works if both slices
 -- have auxiliary variables in the right order.
 -- (This is mostly to work-around the buggy CSE in GHC-8.0)
@@ -198,12 +200,9 @@ eqSlice' _ [] [] = Right ()
 eqSlice' _ ((v,_) : _) [] = Left $ ppr v
 eqSlice' _ [] ((v,_) : _) = Left $ ppr v
   -- Mostly defensive programming (slices should not be empty)
-eqSlice' eqv slice1@((head1, _) : _) slice2@((head2, _) : _) = do
-    -- slices are equal if there exist any result with no "unification" obligations left.
-    leftovers <- results
-    if S.null leftovers
-    then Right ()
-    else Left $ text "leftovers:" <+> hsep (map (\(x,y) -> ppr x <+> ppr y) (S.toList leftovers))
+eqSlice' eqv slice1@((head1, def1) : _) slice2@((head2, def2) : _) = do
+    let env  = mkRnEnv2 emptyInScopeSet
+    goSliceVars [] 0 env head1 def1 head2 def2
   where
     -- ignore types and hpc ticks
     it :: Bool
@@ -219,58 +218,27 @@ eqSlice' eqv slice1@((head1, _) : _) slice2@((head2, _) : _) = do
         IgnoreTypesAndTicksEquiv -> False
         UnorderedLetsEquiv       -> True
 
-    -- results. If there are no pairs to be equated, all is fine.
-    results :: Either SDoc VarPairSet
-    results = execStateT (loop' (mkRnEnv2 emptyInScopeSet) S.empty head1 head2) S.empty
-
-    -- while there are obligations left, try to equate them.
-    loop :: RnEnv2 -> VarPairSet -> StateT VarPairSet (Either SDoc) ()
-    loop env done = do
-        vars <- get
-        case S.minView vars of
-            Nothing -> return () -- nothing to do, done.
-            Just ((x, y), vars') -> do
-                put vars'
-                if (x, y) `S.member` done
-                then loop env done
-                else loop' env done x y
-
-    loop' :: RnEnv2 -> VarPairSet -> Var -> Var -> StateT VarPairSet (Either SDoc) ()
-    loop' env done x y = do
-        tracePut 0 "TOP" (varToString x ++ " =?= " ++ varToString y)
-        tracePut 0 "DONESET" (showVarPairSet done)
+    goSliceVars :: [SDoc] -> Int -> RnEnv2 -> Var -> CoreExpr -> Var -> CoreExpr -> Either SDoc ()
+    goSliceVars ctx lv env x e1 y e2 = do
+        tracePut lv "SLICEVAR" (varToString x ++ " =?= " ++ varToString y)
 
         -- if x or y expressions are essentially a variable x' or y' respectively
         -- add an obligation to check x' = y (or x = y').
-        if | Just e1 <- lookup x slice1
-           , Just x' <- essentiallyVar e1
-           , x' `elem` map fst slice1
-           -> do modify' (S.insert (x', y))
-                 loop env done
+        if | Just x'  <- essentiallyVar e1
+           , Just e1' <- lookup x' slice1
+           -> goSliceVars ctx lv env x' e1' y e2
 
-           | Just e2 <- lookup y slice2
-           , Just y' <- essentiallyVar e2
-           , y' `elem` map fst slice2
-           -> do modify' (S.insert (x, y'))
-                 loop env done
+           | Just y'  <- essentiallyVar e2
+           , Just e2' <- lookup y' slice2
+           -> goSliceVars ctx lv env x e1 y' e2'
 
             -- otherwise if neither x and y expressions are variables
             -- 1. compare the expressions (already assuming that x and y are equal)
             -- 2. comparison may create new obligations, loop.
-           | Just e1 <- lookup x slice1
-           , Just e2 <- lookup y slice2
-           -> do
-               let env' = rnBndr2 env x y
-                   done' = S.insert (x, y) done
-
-               go [] 0 env' e1 e2 --TODO: better context
-               loop env' done'
-
-            -- and finally, if x or y are not in the slice, we abort.
            | otherwise
            -> do
-              tracePut 0 "TOP" (varToString x ++ " =?= " ++ varToString y ++ " NOT IN SLICES")
-              lift $ Left $ text "not in slices:" <+> hsep [ppr x, ppr y]
+              let env' = rnBndr2 env x y
+              go ctx lv env' e1 e2
 
     essentiallyVar :: CoreExpr -> Maybe Var
     essentiallyVar (App e a)  | it, isTyCoArg a = essentiallyVar e
@@ -285,24 +253,24 @@ eqSlice' eqv slice1@((head1, _) : _) slice2@((head2, _) : _) = do
     essentiallyVar _                            = Nothing
 
     -- report inequality
-    inequality :: [SDoc] -> SDoc -> StateT VarPairSet (Either SDoc) a
-    inequality []  err = lift $ Left err
-    inequality ctx err = lift $ Left $ err $$ hang (text "in") 2 (vcat ctx)
+    inequality :: [SDoc] -> SDoc -> Either SDoc a
+    inequality []  err = Left err
+    inequality ctx err = Left $ err $$ hang (text "in") 2 (vcat ctx)
 
-    go :: [SDoc] -> Int -> RnEnv2 -> CoreExpr -> CoreExpr -> StateT VarPairSet (Either SDoc) ()
-    go ctx lv env (Var v1) (Var v2) = do
+    go :: [SDoc] -> Int -> RnEnv2 -> CoreExpr -> CoreExpr -> Either SDoc ()
+    go ctx lv env (essentiallyVar -> Just v1) (essentiallyVar -> Just v2) = do
         if | v1 == v2 -> do
             tracePut lv "VAR" (varToString v1 ++ " =?= " ++ varToString v2 ++ " SAME")
             return ()
            | rnOccL env v1 == rnOccR env v2 -> do
             tracePut lv "VAR" (varToString v1 ++ " =?= " ++ varToString v2 ++ " IN ENV")
             return ()
-           | Just _<- lookup v1 slice1
-           , Just _<- lookup v2 slice2 -> do
+           | Just e1 <- lookup v1 slice1
+           , Just e2 <- lookup v2 slice2 -> do
             tracePut lv "VAR" (varToString v1 ++ " =?= " ++ varToString v2 ++ " OBLIGATION")
-            modify (S.insert (v1, v2))
+            goSliceVars ctx lv env v1 e1 v2 e2
            | otherwise -> do
-            inequality ctx $ hsep [ text "inequal variables", ppr v1, text "and", ppr v2 ]  
+            inequality ctx $ hsep [ text "inequal variables", ppr v1, text "and", ppr v2 ]
 
     go ctx lv _   (Lit lit1)    (Lit lit2)        = do
         tracePut lv "LIT" "???" -- no Show for Literal :(
@@ -359,7 +327,7 @@ eqSlice' eqv slice1@((head1, _) : _) slice2@((head2, _) : _) = do
            go ctx lv (rnBndr2 env v1 v2) e1 e2
 
     go ctx lv env (Let (Rec ps1) e1) (Let (Rec ps2) e2)
-      = do 
+      = do
            unless (equalLength ps1 ps2) $ inequality ctx $ text "different amount of bindings in recursive let"
            sequence_ $ zipWith (go ctx lv env') rs1 rs2
            go ctx lv env' e1 e2
@@ -374,7 +342,7 @@ eqSlice' eqv slice1@((head1, _) : _) slice2@((head2, _) : _) = do
     go ctx lv env (Case e1 b1 t1 a1) (Case e2 b2 t2 a2)
       | null a1   -- See Note [Empty case alternatives] in TrieMap
       , null a2
-      = do 
+      = do
            go ctx lv env e1 e2
            unless it $ goTypes ctx env t1 t2
 
@@ -396,7 +364,7 @@ eqSlice' eqv slice1@((head1, _) : _) slice2@((head2, _) : _) = do
         | otherwise         = inequality ctx $ sep [ text "inequal types:", ppr t1, text "and", ppr t2 ]
 
     -----------
-    go_alt :: [SDoc] -> Int -> RnEnv2 -> CoreAlt -> CoreAlt -> StateT VarPairSet (Either SDoc) ()
+    go_alt :: [SDoc] -> Int -> RnEnv2 -> CoreAlt -> CoreAlt -> Either SDoc ()
     go_alt ctx lv env (Alt c1 bs1 e1) (Alt c2 bs2 e2)
       = do unless (c1 == c2) $ inequality ctx $ sep [ text "inequal constructors:", ppr c1, text "and", ppr c2 ]
            go ctx lv (rnBndrs2 env bs1 bs2) e1 e2
@@ -410,7 +378,7 @@ eqSlice' eqv slice1@((head1, _) : _) slice2@((head2, _) : _) = do
     peelLets (Let (Rec bs) e)     = let (xs, e') = peelLets e in (bs ++ xs, e')
     peelLets e                    = ([], e)
 
-    goBinds :: [SDoc] -> Int -> RnEnv2 -> [(Var, CoreExpr)] -> [(Var, CoreExpr)] -> StateT VarPairSet (Either SDoc) RnEnv2
+    goBinds :: [SDoc] -> Int -> RnEnv2 -> [(Var, CoreExpr)] -> [(Var, CoreExpr)] -> Either SDoc RnEnv2
     goBinds _   _  env []           []         = return env
     goBinds ctx _  _   []           (_:_)      = inequality ctx $ text "goBinds: missing binding"
     goBinds ctx _  _   (_:_)        []         = inequality ctx $ text "goBinds: missing binding"
@@ -418,19 +386,16 @@ eqSlice' eqv slice1@((head1, _) : _) slice2@((head2, _) : _) = do
         -- special case of singleton let bindings:
         -- there is no choice, so we can save ourselves transforming sub-errors.
         go ctx lv env b1 b2
-        modify (S.delete (v1, v2))
         return (rnBndr2 env v1 v2)
 
-    goBinds ctx lv env ((v1,b1):xs) ys'        = StateT $ \s -> findRight (v1 : map fst xs) (map fst ys') $ do
+    goBinds ctx lv env ((v1,b1):xs) ys'        = findRight (v1 : map fst xs) (map fst ys') $ do
         -- select a binding
         ((v2,b2), ys) <- choices ys'
-        return $ flip runStateT s $ do
+        return $ do
             let ctx' = hsep [text "trying", ppr v1, text "=", ppr v2] : ctx
             traceBlock lv "LET*" (varToString v1 ++ " =?= " ++ varToString v2) $ \lv ->
                 go ctx' lv env b1 b2
 
-            -- if match succeeds, delete it from the obligations
-            modify (S.delete (v1, v2))
             -- continue with the rest of bindings, adding a pair as matching one.
             goBinds ctx' lv (rnBndr2 env v1 v2) xs ys
 
@@ -469,9 +434,6 @@ showVars xs = intercalate ", " [ varToString x | (x, _) <- xs ]
 
 pprVars :: [(Var, a)] -> SDoc
 pprVars = braces . hsep . map (ppr . fst)
-
-showVarPairSet :: VarPairSet -> String
-showVarPairSet xs = intercalate ", " [ varToString x ++ " ~ " ++ varToString y | (x, y) <- S.toList xs ]
 
 varToString :: Var -> String
 varToString v = occNameString (occName (tyVarName v)) ++ "_" ++ show (getUnique v)
