@@ -229,11 +229,11 @@ checkProperty guts thn1 (EqualTo thn2 ignore_types) = do
        , Just (v2, _) <- p2
        , let slice1 = slice binds v1
        , let slice2 = slice binds v2
-       -> if eqSlice ignore_types slice1 slice2
-          -- OK if they have the same expression
-          then pure ResSuccess
+       -> case eqSlice' ignore_types slice1 slice2 of
+            -- OK if they have the same expression
+            Right _ -> pure ResSuccess
           -- Not ok if the expression differ
-          else pure . ResFailure $ pprSliceDifference slice1 slice2
+            Left err -> pure . ResFailure $ err $$ pprSliceDifference slice1 slice2
        -- Not ok if both names are bound externally
        | Nothing <- p1
        , Nothing <- p2
