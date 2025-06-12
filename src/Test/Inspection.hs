@@ -212,7 +212,7 @@ infix 9 =/=
 --
 -- @since 0.4.3.0
 (=/-) :: Name -> Name -> Obligation
-(=/-) = mkEquality False IgnoreTypesAndTicksEquiv
+(=/-) = mkEquality True IgnoreTypesAndTicksEquiv
 infix 9 =/-
 
 -- | Declare two functions to be equal up to let binding ordering (see '(==~)'),
@@ -220,7 +220,7 @@ infix 9 =/-
 --
 -- @since 0.5
 (=/~) :: Name -> Name -> Obligation
-(=/~) = mkEquality False UnorderedLetsEquiv
+(=/~) = mkEquality True UnorderedLetsEquiv
 infix 9 =/~
 
 mkEquality :: Bool -> Equivalence -> Name -> Name -> Obligation
