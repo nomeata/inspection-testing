@@ -361,7 +361,7 @@ eqSlice' eqv slice1@((head1, def1) : _) slice2@((head2, def2) : _) = do
     go ctx lv env ee (Lam b e1) e2 | it, isTyCoVar b = go ctx lv env ee e1 e2
     go ctx lv env ee e1 (Lam b e2) | it, isTyCoVar b = go ctx lv env ee e1 e2
     go ctx lv env ee (Lam b1 e1)  (Lam b2 e2)        = traceBlock lv "LAM" (varToString b1 ++ " ~ " ++ varToString b2) $ \lv -> do
-           -- guard (it || eqTypeX env (varType b1) (varType b2)) -- TODO
+           unless it $ goTypes ctx env (varType b1) (varType b2)
            go ctx lv (rnBndr2 env b1 b2) ee e1 e2
 
     go ctx lv env ee e1@(Let _ _) e2@(Let _ _)
