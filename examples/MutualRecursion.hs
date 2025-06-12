@@ -30,6 +30,26 @@ inspect $ 'inf === 'inf'
 inspect $ 'inf === 'inf2'
 inspect $ 'inf === 'inf3'
 
+-- with local variable for let*
+-- NOINLINE to prevent CSE
+infl x = go0
+  where
+    go0 = x : go1
+    go1 = 'b' : go2
+    go2 = 'c' : go0
+{-# NOINLINE infl #-}
+infl' x = go0
+  where
+    go1 = 'c' : go2
+    go0 = x : go1
+    go2 = 'b' : go0
+{-# NOINLINE infl' #-}
+
+-- See https://github.com/nomeata/inspection-testing/pull/88
+-- and https://github.com/nomeata/inspection-testing/issues/82
+-- Change to ===, this shouldn't panic.
+inspect $ 'infl =/= 'infl'
+
 letrec =
   let go0 = 'a' : go1
       go1 = 'b' : go2
