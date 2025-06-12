@@ -195,15 +195,11 @@ withLessDetail sdoc = withPprStyle defaultUserStyle sdoc
 data EqEnv = EqEnv !Int [(Var, (Int, CoreExpr))]  [(Var, (Int, CoreExpr))]
 
 -- | Lookup left and right variables in EqEnv.
--- Lookup succeeds only if variables are bound on the same level.
---
--- Also return the level for debugging purposes.
-lookupEqEnv :: Var -> Var -> EqEnv -> Maybe (Int, CoreExpr, CoreExpr)
+lookupEqEnv :: Var -> Var -> EqEnv -> Maybe (Int, Int, CoreExpr, CoreExpr)
 lookupEqEnv x y (EqEnv _ env1 env2)
     | Just (i, e1) <- lookup x env1
     , Just (j, e2) <- lookup y env2
-    , i == j
-    = Just (i, e1, e2)
+    = Just (i, j, e1, e2)
 
     | otherwise
     = Nothing
@@ -287,17 +283,43 @@ eqSlice' eqv slice1@((head1, def1) : _) slice2@((head2, def2) : _) = do
 
     go :: [SDoc] -> Int -> RnEnv2 -> EqEnv -> CoreExpr -> CoreExpr -> Either SDoc ()
     go ctx lv env ee (essentiallyVar -> Just v1) (essentiallyVar -> Just v2) = do
-        if | v1 == v2 -> do
-            tracePut lv "VAR" (varToString v1 ++ " =?= " ++ varToString v2 ++ " SAME")
-            return ()
-           | rnOccL env v1 == rnOccR env v2 -> do
+        -- NOTE: The ordering of this checks is important.
+        --
+        -- See example https://github.com/nomeata/inspection-testing/pull/89#issuecomment-2967774956
+        -- GHC may use same name for local names in different bindings.
+        --
+        -- Therefore we first check for already visited and lambda-bound variables.
+        -- (inRnEnvL/inRnEnvR checks are important so we don't confuse for unbound variables).
+        -- We need to this first to break loops of recursive definitions,.
+        --
+        -- Then we test whether variables are top or local-let bound.
+        -- If so, we proceed to compare their definitions.
+        --
+        -- Lastly we check whether variables are equal.
+        -- This case checks for any global names.
+        if
+           | inRnEnvL env v1
+           , inRnEnvR env v2
+           , rnOccL env v1 == rnOccR env v2 -> do
             tracePut lv "VAR" (varToString v1 ++ " =?= " ++ varToString v2 ++ " IN ENV")
             return ()
 
-           | Just (i, e1, e2) <- lookupEqEnv v1 v2 ee -> do
-            tracePut lv "VAR" (varToString v1 ++ " =?= " ++ varToString v2 ++ " BOUND " ++ show i)
-            let env' = rnBndr2 env v1 v2
-            go ctx lv env' ee e1 e2
+           | Just (i, j, e1, e2) <- lookupEqEnv v1 v2 ee ->
+             -- we check that levels are the same
+             -- if they are not we fail immediately and not fall-back further.
+             if i == j
+             then do
+               tracePut lv "VAR" (varToString v1 ++ " =?= " ++ varToString v2 ++ " BOUND " ++ show i)
+               let ctx' = text "comparing definitions of" <+> ppr v1 <+> text "=?=" <+> ppr v2 : ctx
+               let env' = rnBndr2 env v1 v2
+               go ctx' lv env' ee e1 e2
+             else do
+               tracePut lv "VAR" (varToString v1 ++ " =?= " ++ varToString v2 ++ " BOUND IN DIFFERENT LETS " ++ show i ++ " /= " ++ show j)
+               inequality ctx $ hsep [ text "variables", ppr v1, text "and", ppr v2, text "are bound in different lets" ]
+
+           | v1 == v2 -> do
+            tracePut lv "VAR" (varToString v1 ++ " =?= " ++ varToString v2 ++ " SAME")
+            return ()
 
            | otherwise -> do
             tracePut lv "VAR" (varToString v1 ++ " =?= " ++ varToString v2 ++ " NOT EQUAL")
@@ -377,7 +399,8 @@ eqSlice' eqv slice1@((head1, def1) : _) slice2@((head2, def2) : _) = do
            unless it $ goTypes ctx env t1 t2
 
       | otherwise
-      = do unless (equalLength a1 a2) $ inequality ctx $ text "different amount of alternatives in case"
+      = traceBlock lv "CASE" "..." $ \lv -> do
+           unless (equalLength a1 a2) $ inequality ctx $ text "different amount of alternatives in case"
            go ctx lv env ee e1 e2
            sequence_ $ zipWith (go_alt ctx lv (rnBndr2 env b1 b2) ee) a1 a2
 
@@ -396,7 +419,8 @@ eqSlice' eqv slice1@((head1, def1) : _) slice2@((head2, def2) : _) = do
     -----------
     go_alt :: [SDoc] -> Int -> RnEnv2 -> EqEnv -> CoreAlt -> CoreAlt -> Either SDoc ()
     go_alt ctx lv env ee (Alt c1 bs1 e1) (Alt c2 bs2 e2)
-      = do unless (c1 == c2) $ inequality ctx $ sep [ text "inequal constructors:", ppr c1, text "and", ppr c2 ]
+      = traceBlock lv "ALT" "..." $ \lv -> do
+           unless (c1 == c2) $ inequality ctx $ sep [ text "inequal constructors:", ppr c1, text "and", ppr c2 ]
            go ctx lv (rnBndrs2 env bs1 bs2) ee e1 e2
 
     go_tick :: RnEnv2 -> CoreTickish -> CoreTickish -> Bool
