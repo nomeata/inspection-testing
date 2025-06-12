@@ -20,6 +20,7 @@ import GHC.Core.Utils
 import GHC.Core.TyCo.Rep
 import GHC.Core.Type
 import GHC.Types.Var as Var
+import GHC.Types.Var.Set (mkVarSet)
 import GHC.Types.Id
 import GHC.Types.Name
 import GHC.Types.Literal
@@ -40,6 +41,7 @@ import CoreSubst
 import TyCoRep
 import Type
 import Var
+import VarSet (mkVarSet)
 import Id
 import Literal
 import Name
@@ -135,7 +137,7 @@ pprSliceDifference :: Slice -> Slice -> SDoc
 pprSliceDifference slice1 slice2
     | [(v1,e1)] <- slice1'
     , [(v2,e2)] <- slice2'
-    = pprSingletonSliceDifference v1 v2 e1 e2
+    = pprSingletonSliceDifference (mkInScopeSet (mkVarSet (S.toList both))) v1 v2 e1 e2
 
     | otherwise =
         hang (text "LHS" Outputable.<> colon) 4 (pprSlice slice1') $$
@@ -145,8 +147,8 @@ pprSliceDifference slice1 slice2
     slice1' = filter (\(v,_) -> v `S.notMember` both) slice1
     slice2' = filter (\(v,_) -> v `S.notMember` both) slice2
 
-pprSingletonSliceDifference :: Var -> Var -> CoreExpr -> CoreExpr -> SDoc
-pprSingletonSliceDifference v1 v2 e1 e2 =
+pprSingletonSliceDifference :: InScopeSet -> Var -> Var -> CoreExpr -> CoreExpr -> SDoc
+pprSingletonSliceDifference iss v1 v2 e1 e2 =
     ctxDoc $
     hang (text "LHS" Outputable.<> colon) 4 (hang (pprPrefixOcc v1) 2 (eqSign <+> pprCoreExpr e1')) $$
     hang (text "RHS" Outputable.<> colon) 4 (hang (pprPrefixOcc v2) 2 (eqSign <+> pprCoreExpr e2'))
@@ -166,7 +168,7 @@ pprSingletonSliceDifference v1 v2 e1 e2 =
         | eqTypeX env (varType b1) (varType b2)
         = go t1 t2 ((b1,b2):ctxt) (rnBndr2 env b1 b2)
       where
-    go x y ctxt _env = (rename ctxt x, y, ctxt)
+    go x y ctxt _env = (rename iss ctxt x, y, ctxt)
 
     mkContextExpr :: [Var] -> CoreExpr
     mkContextExpr []       = ellipsis
@@ -593,11 +595,11 @@ doesNotContainTypeClasses :: Slice -> [Name] -> Maybe (Var, CoreExpr, [TyCon])
 doesNotContainTypeClasses slice tcNs
     = allTyCons (\tc -> not (isClassTyCon tc) || isCTupleTyConName (getName tc) || any (getName tc ==) tcNs) slice
 
-rename :: [(Var, Var)] -> CoreExpr -> CoreExpr
-rename rn = substExpr' sub where
+rename :: InScopeSet -> [(Var, Var)] -> CoreExpr -> CoreExpr
+rename iss rn = substExpr' sub where
     -- convert RnEnv2 to Subst
     -- here we forget about tyvars and covars, but mostly this is good enough.
-    sub = mkOpenSubst emptyInScopeSet [ (v1, if isTyVar v2 then Type (mkTyVarTy v2) else if isCoVar v2 then Coercion (mkCoVarCo v2) else Var v2 ) | (v1, v2) <- rn]
+    sub = mkOpenSubst iss [ (v1, if isTyVar v2 then Type (mkTyVarTy v2) else if isCoVar v2 then Coercion (mkCoVarCo v2) else Var v2 ) | (v1, v2) <- rn]
 
 #if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
     substExpr' = substExpr
