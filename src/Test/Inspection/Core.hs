@@ -203,8 +203,7 @@ eqSlice' _ ((v,_) : _) [] = Left $ ppr v
 eqSlice' _ [] ((v,_) : _) = Left $ ppr v
   -- Mostly defensive programming (slices should not be empty)
 eqSlice' eqv slice1@((head1, def1) : _) slice2@((head2, def2) : _) = do
-    let env  = mkRnEnv2 emptyInScopeSet
-    goSliceVars [] 0 env head1 def1 head2 def2
+    goStart head1 def1 head2 def2
   where
     -- ignore types and hpc ticks
     it :: Bool
@@ -220,27 +219,24 @@ eqSlice' eqv slice1@((head1, def1) : _) slice2@((head2, def2) : _) = do
         IgnoreTypesAndTicksEquiv -> False
         UnorderedLetsEquiv       -> True
 
-    goSliceVars :: [SDoc] -> Int -> RnEnv2 -> Var -> CoreExpr -> Var -> CoreExpr -> Either SDoc ()
-    goSliceVars ctx lv env x e1 y e2 = do
-        tracePut lv "SLICEVAR" (varToString x ++ " =?= " ++ varToString y)
-
-        -- if x or y expressions are essentially a variable x' or y' respectively
-        -- add an obligation to check x' = y (or x = y').
+    goStart :: Var -> CoreExpr -> Var -> CoreExpr -> Either SDoc ()
+    goStart x e1 y e2 = do
+        tracePut 0 "TOP" (varToString x ++ " =?= " ++ varToString y)
         if | Just x'  <- essentiallyVar e1
            , Just e1' <- lookup x' slice1
-           -> goSliceVars ctx lv env x' e1' y e2
+           -> goStart x' e1' y e2
 
            | Just y'  <- essentiallyVar e2
            , Just e2' <- lookup y' slice2
-           -> goSliceVars ctx lv env x e1 y' e2'
+           -> goStart x e1 y' e2'
 
             -- otherwise if neither x and y expressions are variables
             -- 1. compare the expressions (already assuming that x and y are equal)
             -- 2. comparison may create new obligations, loop.
            | otherwise
            -> do
-              let env' = rnBndr2 env x y
-              go ctx lv env' e1 e2
+              let env = rnBndr2 (mkRnEnv2 emptyInScopeSet) x y
+              go [] 0 env e1 e2
 
     essentiallyVar :: CoreExpr -> Maybe Var
     essentiallyVar (App e a)  | it, isTyCoArg a = essentiallyVar e
@@ -270,7 +266,8 @@ eqSlice' eqv slice1@((head1, def1) : _) slice2@((head2, def2) : _) = do
            | Just e1 <- lookup v1 slice1
            , Just e2 <- lookup v2 slice2 -> do
             tracePut lv "VAR" (varToString v1 ++ " =?= " ++ varToString v2 ++ " OBLIGATION")
-            goSliceVars ctx lv env v1 e1 v2 e2
+            let env' = rnBndr2 env v1 v2
+            go ctx lv env' e1 e2
            | otherwise -> do
             inequality ctx $ hsep [ text "inequal variables", ppr v1, text "and", ppr v2 ]
 
