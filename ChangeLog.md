@@ -1,5 +1,13 @@
 # Revision history for inspection-testing
 
+## 0.6.2 -- 2025-06-13
+
+* Fix an bug that would cause a GHC panic
+* Fix `=/~` and `=/-` 
+* Syntax directed comparison of lets
+
+(all thanks Oleg Grenrus)
+
 ## 0.6.1 -- 2025-06-11
 
 * Improve presentation of term inequalities (thanks Oleg Grenrus)
