@@ -1,5 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
-module UnsafeCoerce (main) where
+module UnsafeCoerce where
 
 import Test.Inspection
 import Unsafe.Coerce
