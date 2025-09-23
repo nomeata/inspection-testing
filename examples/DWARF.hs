@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# OPTIONS_GHC -g #-}
-module DWARF (main) where
+module DWARF where
 
 import Test.Inspection
 import Data.Maybe

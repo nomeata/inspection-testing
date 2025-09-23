@@ -1,5 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
-module Main (main) where
+module Main where
 
 import Test.Inspection
 import Data.Maybe

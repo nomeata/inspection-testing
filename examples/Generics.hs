@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveGeneric, TemplateHaskell #-}
-module Generics (main) where
+module Generics where
 
 import GHC.Generics
 import Test.Inspection

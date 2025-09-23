@@ -1,5 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
-module WorkerWrapper (main) where
+module WorkerWrapper where
 
 import Test.Inspection
 

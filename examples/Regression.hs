@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+module Main where
 
 -- This is a kitchen sink test file for various regressions
 -- reported via GitHub

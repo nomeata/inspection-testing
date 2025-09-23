@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# OPTIONS_GHC -O -fhpc -fplugin-opt=Test.Inspection.Plugin:quiet #-}
-module HPCs (main) where
+module HPCs where
 
 import Test.Inspection
 

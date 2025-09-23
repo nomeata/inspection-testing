@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell, CPP #-}
 {-# OPTIONS_GHC -dsuppress-all -funfolding-use-threshold=120 #-}
-module Fusion (main) where
+module Fusion where
 
 import Test.Inspection
 import Data.List (foldl', sort)

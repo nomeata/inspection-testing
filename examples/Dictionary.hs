@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE TemplateHaskell #-}
-module Dictionary (main) where
+module Dictionary where
 
 import Test.Inspection
 import Control.Monad.IO.Class (MonadIO (..))

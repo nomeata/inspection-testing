@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# OPTIONS_GHC -dsuppress-all #-}
-module Main (main) where
+module Main where
 
 import Test.Inspection
 import Data.Char (toUpper)
