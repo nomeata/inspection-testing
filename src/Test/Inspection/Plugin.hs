@@ -238,7 +238,7 @@ checkProperty guts thn1 (EqualTo thn2 ignore_types) = do
        | Nothing <- p1
        , Nothing <- p2
        -> pure . ResFailure $ ppr n1 <+> text " and " <+> ppr n2 <+>
-                text "are different external names"
+                text "are different external names: " <+> ppr (map fst binds)
        | Nothing <- p1
        -> pure . ResFailure $ ppr n1 <+> text "is an external name"
        | Nothing <- p2

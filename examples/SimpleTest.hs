@@ -1,5 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
-module Main where
+module Main (main) where
 
 import Test.Inspection
 import Data.Maybe
@@ -21,6 +21,8 @@ printResult (Failure s) = putStrLn s
 isSuccess :: Result -> Bool
 isSuccess (Success _) = True
 isSuccess (Failure _) = False
+
+$(return [])
 
 results :: [Result]
 results =

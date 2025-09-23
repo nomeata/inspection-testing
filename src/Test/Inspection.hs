@@ -298,9 +298,20 @@ inspectCommon annTarget obl = do
 #if MIN_VERSION_GLASGOW_HASKELL(8,4,0,0)
     addCorePlugin "Test.Inspection.Plugin"
 #endif
+    reifyObligation obl
     loc <- location
     annExpr <- liftData (obl { srcLoc = Just $ fromMaybe loc $ srcLoc obl })
     pure [PragmaD (AnnP annTarget annExpr)]
+
+reifyObligation :: Obligation -> Q ()
+reifyObligation obl = do
+    _ <- reify (target obl)
+    reifyProperty (property obl)
+    return ()
+
+reifyProperty :: Property -> Q ()
+reifyProperty (EqualTo n _) = reify n >>= (runIO . print)
+reifyProperty _             = return ()
 
 -- | As seen in the example above, the entry point to inspection testing is the
 -- 'inspect' function, to which you pass an 'Obligation'.
