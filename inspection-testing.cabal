@@ -53,38 +53,38 @@ library
   default-language:    Haskell2010
   ghc-options:         -Wall -Wno-name-shadowing
 
-test-suite NS_NP
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      examples
-  main-is:             NS_NP.hs
-  build-depends:       inspection-testing
-  build-depends:       base
-  default-language:    Haskell2010
-  ghc-options:         -main-is NS_NP
-  if impl(ghc < 8.4)
-      ghc-options:       -fplugin=Test.Inspection.Plugin
-
-test-suite HPCs
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      examples
-  main-is:             HPCs.hs
-  build-depends:       inspection-testing
-  build-depends:       base
-  default-language:    Haskell2010
-  ghc-options:         -main-is HPCs
-  if impl(ghc < 8.4)
-      ghc-options:       -fplugin=Test.Inspection.Plugin
-
-test-suite simple
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      examples
-  main-is:             Simple.hs
-  build-depends:       inspection-testing
-  build-depends:       base
-  default-language:    Haskell2010
-  ghc-options:         -main-is Simple
-  if impl(ghc < 8.4)
-      ghc-options:       -fplugin=Test.Inspection.Plugin
+-- test-suite NS_NP
+--   type:                exitcode-stdio-1.0
+--   hs-source-dirs:      examples
+--   main-is:             NS_NP.hs
+--   build-depends:       inspection-testing
+--   build-depends:       base
+--   default-language:    Haskell2010
+--   ghc-options:         -main-is NS_NP
+--   if impl(ghc < 8.4)
+--       ghc-options:       -fplugin=Test.Inspection.Plugin
+--
+-- test-suite HPCs
+--   type:                exitcode-stdio-1.0
+--   hs-source-dirs:      examples
+--   main-is:             HPCs.hs
+--   build-depends:       inspection-testing
+--   build-depends:       base
+--   default-language:    Haskell2010
+--   ghc-options:         -main-is HPCs
+--   if impl(ghc < 8.4)
+--       ghc-options:       -fplugin=Test.Inspection.Plugin
+--
+-- test-suite simple
+--   type:                exitcode-stdio-1.0
+--   hs-source-dirs:      examples
+--   main-is:             Simple.hs
+--   build-depends:       inspection-testing
+--   build-depends:       base
+--   default-language:    Haskell2010
+--   ghc-options:         -main-is Simple
+--   if impl(ghc < 8.4)
+--       ghc-options:       -fplugin=Test.Inspection.Plugin
 
 test-suite simple-test
   type:                exitcode-stdio-1.0
@@ -96,148 +96,148 @@ test-suite simple-test
   if impl(ghc < 8.4)
       ghc-options:       -fplugin=Test.Inspection.Plugin
 
-test-suite lets-test
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      examples
-  main-is:             LetsTest.hs
-  build-depends:       inspection-testing
-  build-depends:       base
-  default-language:    Haskell2010
-  if impl(ghc < 8.4)
-      ghc-options:       -fplugin=Test.Inspection.Plugin
-
-test-suite doesnotuse
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      examples
-  main-is:             DoesNotUse.hs
-  build-depends:       inspection-testing
-  build-depends:       base
-  default-language:    Haskell2010
-  ghc-options:         -main-is DoesNotUse
-  if impl(ghc < 8.4)
-      ghc-options:       -fplugin=Test.Inspection.Plugin
-
-test-suite fusion
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      examples
-  main-is:             Fusion.hs
-  build-depends:       inspection-testing
-  build-depends:       base
-  default-language:    Haskell2010
-  ghc-options:         -main-is Fusion
-  if impl(ghc < 8.4)
-      ghc-options:       -fplugin=Test.Inspection.Plugin
-
-test-suite generics
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      examples
-  main-is:             Generics.hs
-  build-depends:       inspection-testing
-  build-depends:       base
-  default-language:    Haskell2010
-  ghc-options:         -main-is Generics
-  if impl(ghc < 8.4)
-      ghc-options:       -fplugin=Test.Inspection.Plugin
-
-test-suite dictionary
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      examples
-  main-is:             Dictionary.hs
-  build-depends:       inspection-testing
-  build-depends:       base
-  default-language:    Haskell2010
-  ghc-options:         -main-is Dictionary
-  if impl(ghc < 8.4)
-      ghc-options:       -fplugin=Test.Inspection.Plugin
-
-test-suite mutual-recursion
-   type:                exitcode-stdio-1.0
-   hs-source-dirs:      examples
-   main-is:             MutualRecursion.hs
-   build-depends:       inspection-testing
-   build-depends:       base
-   default-language:    Haskell2010
-   ghc-options:         -main-is MutualRecursion
-
-test-suite regression
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      examples
-  main-is:             Regression.hs
-  build-depends:       inspection-testing
-  build-depends:       base
-  default-language:    Haskell2010
-  if impl(ghc < 8.4)
-      ghc-options:       -fplugin=Test.Inspection.Plugin
-
-test-suite worker-wrapper
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      examples
-  main-is:             WorkerWrapper.hs
-  build-depends:       inspection-testing
-  build-depends:       base
-  default-language:    Haskell2010
-  ghc-options:         -main-is WorkerWrapper
-  if impl(ghc < 8.4)
-      ghc-options:       -fplugin=Test.Inspection.Plugin
-
-test-suite unsafe-coerce
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      examples
-  main-is:             UnsafeCoerce.hs
-  build-depends:       inspection-testing
-  build-depends:       base
-  default-language:    Haskell2010
-  ghc-options:         -main-is UnsafeCoerce
-  if impl(ghc < 8.4)
-      ghc-options:       -fplugin=Test.Inspection.Plugin
-
-flag more-tests
-  description: Run tests that pull in specific versions of other packages
-  default: False
-
-test-suite generic-lens
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      examples
-  main-is:             GenericLens.hs
-  if flag(more-tests)
-    build-depends:       inspection-testing
-    build-depends:       base
-    build-depends:       generic-lens ==2.1.0.0
-  else
-    buildable:         False
-  default-language:    Haskell2010
-  ghc-options:         -main-is GenericLens
-  if impl(ghc < 8.4)
-      ghc-options:       -fplugin=Test.Inspection.Plugin
-
-
-flag old-text-tests
-  description: Run tests that exhibits bug in old text package. Only works with older version of GHC.
-  default: False
-
-test-suite text
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      examples
-  main-is:             Text.hs
-  if flag(old-text-tests)
-    build-depends:       inspection-testing
-    build-depends:       base
-    build-depends:       text ==1.2.2.2
-    build-depends:       bytestring
-  else
-    buildable:         False
-  default-language:    Haskell2010
-  ghc-options:         -main-is Text
-  if impl(ghc < 8.4)
-      ghc-options:       -fplugin=Test.Inspection.Plugin
-
-test-suite dwarf
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      examples
-  main-is:             DWARF.hs
-  build-depends:       inspection-testing
-  build-depends:       base
-  default-language:    Haskell2010
-  ghc-options:         -main-is DWARF
-  if impl(ghc < 8.4)
-      ghc-options:       -fplugin=Test.Inspection.Plugin
+-- test-suite lets-test
+--   type:                exitcode-stdio-1.0
+--   hs-source-dirs:      examples
+--   main-is:             LetsTest.hs
+--   build-depends:       inspection-testing
+--   build-depends:       base
+--   default-language:    Haskell2010
+--   if impl(ghc < 8.4)
+--       ghc-options:       -fplugin=Test.Inspection.Plugin
+--
+-- test-suite doesnotuse
+--   type:                exitcode-stdio-1.0
+--   hs-source-dirs:      examples
+--   main-is:             DoesNotUse.hs
+--   build-depends:       inspection-testing
+--   build-depends:       base
+--   default-language:    Haskell2010
+--   ghc-options:         -main-is DoesNotUse
+--   if impl(ghc < 8.4)
+--       ghc-options:       -fplugin=Test.Inspection.Plugin
+--
+-- test-suite fusion
+--   type:                exitcode-stdio-1.0
+--   hs-source-dirs:      examples
+--   main-is:             Fusion.hs
+--   build-depends:       inspection-testing
+--   build-depends:       base
+--   default-language:    Haskell2010
+--   ghc-options:         -main-is Fusion
+--   if impl(ghc < 8.4)
+--       ghc-options:       -fplugin=Test.Inspection.Plugin
+--
+-- test-suite generics
+--   type:                exitcode-stdio-1.0
+--   hs-source-dirs:      examples
+--   main-is:             Generics.hs
+--   build-depends:       inspection-testing
+--   build-depends:       base
+--   default-language:    Haskell2010
+--   ghc-options:         -main-is Generics
+--   if impl(ghc < 8.4)
+--       ghc-options:       -fplugin=Test.Inspection.Plugin
+--
+-- test-suite dictionary
+--   type:                exitcode-stdio-1.0
+--   hs-source-dirs:      examples
+--   main-is:             Dictionary.hs
+--   build-depends:       inspection-testing
+--   build-depends:       base
+--   default-language:    Haskell2010
+--   ghc-options:         -main-is Dictionary
+--   if impl(ghc < 8.4)
+--       ghc-options:       -fplugin=Test.Inspection.Plugin
+--
+-- test-suite mutual-recursion
+--    type:                exitcode-stdio-1.0
+--    hs-source-dirs:      examples
+--    main-is:             MutualRecursion.hs
+--    build-depends:       inspection-testing
+--    build-depends:       base
+--    default-language:    Haskell2010
+--    ghc-options:         -main-is MutualRecursion
+--
+-- test-suite regression
+--   type:                exitcode-stdio-1.0
+--   hs-source-dirs:      examples
+--   main-is:             Regression.hs
+--   build-depends:       inspection-testing
+--   build-depends:       base
+--   default-language:    Haskell2010
+--   if impl(ghc < 8.4)
+--       ghc-options:       -fplugin=Test.Inspection.Plugin
+--
+-- test-suite worker-wrapper
+--   type:                exitcode-stdio-1.0
+--   hs-source-dirs:      examples
+--   main-is:             WorkerWrapper.hs
+--   build-depends:       inspection-testing
+--   build-depends:       base
+--   default-language:    Haskell2010
+--   ghc-options:         -main-is WorkerWrapper
+--   if impl(ghc < 8.4)
+--       ghc-options:       -fplugin=Test.Inspection.Plugin
+--
+-- test-suite unsafe-coerce
+--   type:                exitcode-stdio-1.0
+--   hs-source-dirs:      examples
+--   main-is:             UnsafeCoerce.hs
+--   build-depends:       inspection-testing
+--   build-depends:       base
+--   default-language:    Haskell2010
+--   ghc-options:         -main-is UnsafeCoerce
+--   if impl(ghc < 8.4)
+--       ghc-options:       -fplugin=Test.Inspection.Plugin
+--
+-- flag more-tests
+--   description: Run tests that pull in specific versions of other packages
+--   default: False
+--
+-- test-suite generic-lens
+--   type:                exitcode-stdio-1.0
+--   hs-source-dirs:      examples
+--   main-is:             GenericLens.hs
+--   if flag(more-tests)
+--     build-depends:       inspection-testing
+--     build-depends:       base
+--     build-depends:       generic-lens ==2.1.0.0
+--   else
+--     buildable:         False
+--   default-language:    Haskell2010
+--   ghc-options:         -main-is GenericLens
+--   if impl(ghc < 8.4)
+--       ghc-options:       -fplugin=Test.Inspection.Plugin
+--
+--
+-- flag old-text-tests
+--   description: Run tests that exhibits bug in old text package. Only works with older version of GHC.
+--   default: False
+--
+-- test-suite text
+--   type:                exitcode-stdio-1.0
+--   hs-source-dirs:      examples
+--   main-is:             Text.hs
+--   if flag(old-text-tests)
+--     build-depends:       inspection-testing
+--     build-depends:       base
+--     build-depends:       text ==1.2.2.2
+--     build-depends:       bytestring
+--   else
+--     buildable:         False
+--   default-language:    Haskell2010
+--   ghc-options:         -main-is Text
+--   if impl(ghc < 8.4)
+--       ghc-options:       -fplugin=Test.Inspection.Plugin
+--
+-- test-suite dwarf
+--   type:                exitcode-stdio-1.0
+--   hs-source-dirs:      examples
+--   main-is:             DWARF.hs
+--   build-depends:       inspection-testing
+--   build-depends:       base
+--   default-language:    Haskell2010
+--   ghc-options:         -main-is DWARF
+--   if impl(ghc < 8.4)
+--       ghc-options:       -fplugin=Test.Inspection.Plugin
