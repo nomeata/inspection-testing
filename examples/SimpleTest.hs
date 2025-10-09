@@ -1,5 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
-module Main where
+module Main (main) where
 
 import Test.Inspection
 import Data.Maybe
@@ -34,3 +34,6 @@ main = do
     if map isSuccess results == [True, False]
     then exitSuccess
     else exitFailure
+
+_unused :: ()
+_unused = const () [ 'lhs, 'rhs, 'something_else ]
