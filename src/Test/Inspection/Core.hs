@@ -65,7 +65,7 @@ import GHC.Core.TyCo.Compare (eqTypeX)
 
 import qualified Data.Set as S
 import Control.Monad (unless)
-import Control.Monad.State.Strict (execState,  modify', gets)
+import Control.Monad.Trans.State.Strict (execState,  modify', gets)
 import Data.List (nub, intercalate)
 import Data.Maybe (listToMaybe, fromJust)
 import Data.Either (isRight)
