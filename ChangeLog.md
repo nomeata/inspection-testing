@@ -1,5 +1,10 @@
 # Revision history for inspection-testing
 
+## 0.6.3 -- 2026-01-17
+
+* Compatibility with GHC 9.14
+* Remove spurious mtl dependency
+
 ## 0.6.2 -- 2025-06-13
 
 * Fix an bug that would cause a GHC panic
