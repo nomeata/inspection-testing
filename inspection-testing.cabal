@@ -49,7 +49,7 @@ library
   build-depends:       ghc >= 8.0.2 && <9.15
   build-depends:       template-haskell
   build-depends:       containers
-  build-depends:       mtl
+  build-depends:       transformers
   default-language:    Haskell2010
   ghc-options:         -Wall -Wno-name-shadowing
 
