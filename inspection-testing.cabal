@@ -38,7 +38,7 @@ Tested-With:         GHC == 8.0.2, GHC == 8.2.*, GHC == 8.4.*, GHC ==8.6.*, GHC 
 
 source-repository head
   type:     git
-  location: git://github.com/nomeata/inspection-testing.git
+  location: https://github.com/nomeata/inspection-testing
 
 library
   exposed-modules:     Test.Inspection
